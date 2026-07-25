@@ -447,6 +447,9 @@ export class StateStore {
   }
 
   public hireEmployee(name: string, role: 'JUNIOR_STYLIST' | 'SENIOR_STYLIST' | 'RECEPTIONIST' | 'WASH_SPECIALIST', assignedChairIndex: number): void {
+    const startX = role === 'RECEPTIONIST' ? 12 : (assignedChairIndex === 1 ? 8 : 5);
+    const startY = role === 'RECEPTIONIST' ? 5 : 2;
+
     const newEmp: IEmployeeData = {
       id: 'emp_' + Date.now(),
       name,
@@ -455,11 +458,11 @@ export class StateStore {
       speedMultiplier: 0.65,
       assignedChairIndex,
       state: EmployeeState.IDLE,
-      posX: role === 'RECEPTIONIST' ? 12 : 5,
-      posY: role === 'RECEPTIONIST' ? 5 : 2,
-      targetX: role === 'RECEPTIONIST' ? 12 : 5,
-      targetY: role === 'RECEPTIONIST' ? 5 : 2,
-      avatarColor: role === 'RECEPTIONIST' ? '#38bdf8' : '#e879f9',
+      posX: startX,
+      posY: startY,
+      targetX: startX,
+      targetY: startY,
+      avatarColor: role === 'RECEPTIONIST' ? '#38bdf8' : (assignedChairIndex === 1 ? '#fbbf24' : '#e879f9'),
       isWalking: false,
       walkAnimPhase: 0,
       level: 1,

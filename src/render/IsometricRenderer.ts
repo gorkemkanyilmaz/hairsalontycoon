@@ -1,4 +1,4 @@
-﻿import { StateStore } from '../core/StateStore';
+import { StateStore } from '../core/StateStore';
 import { EventBus } from '../core/EventBus';
 import { CustomerManager, ICustomerNPC } from '../ai/CustomerAI';
 import { CustomerState, CustomerClass, GameEventType } from '../core/Types';
@@ -973,8 +973,12 @@ export class IsometricRenderer {
       });
     }
 
-    // 4. Hired Employee NPCs (Stylists & Receptionist)
-    const employees = this.stateStore.getState().employees;
+    // 4. Hired Employee NPCs (Stylists & Receptionist for active branch)
+    const activeBranchIdx = this.stateStore.getState().activeBranchIndex || 0;
+    const employees = this.stateStore.getState().employees.filter(
+      (e) => e.branchIndex === undefined || e.branchIndex === activeBranchIdx
+    );
+
     employees.forEach((emp) => {
       entities.push({
         gridX: emp.posX, gridY: emp.posY, sortKey: emp.posX + emp.posY + 0.04,
@@ -983,8 +987,9 @@ export class IsometricRenderer {
           const empSprite = spriteMgr.getStylistEmployeeSprite(emp.avatarColor, emp.isWalking, emp.walkAnimPhase, this.zoom);
           ctx.drawImage(empSprite, p.x - empSprite.width / 2, p.y - empSprite.height + 12 * this.zoom);
 
-          // Employee Badge Pill
-          this.drawNameBadgePill(`ğŸ‘©â€ğŸ¨ ${emp.name}`, p.x, p.y + 22 * this.zoom);
+          // Employee Badge Pill with role icon
+          const roleIcon = emp.role === 'RECEPTIONIST' ? '👩‍💼' : '👩‍🎨';
+          this.drawNameBadgePill(`${roleIcon} ${emp.name}`, p.x, p.y + 22 * this.zoom);
         }
       });
     });
@@ -1025,7 +1030,7 @@ export class IsometricRenderer {
 
           // Name Badge Pill (Golden Pill for VIPs)
           if (cust.customerClass === CustomerClass.VIP) {
-            this.drawNameBadgePill(`ğŸ‘‘ ${cust.name}`, p.x, p.y + 22 * this.zoom, '#fbbf24');
+            this.drawNameBadgePill(`👑 ${cust.name}`, p.x, p.y + 22 * this.zoom, '#fbbf24');
           } else {
             this.drawNameBadgePill(cust.name, p.x, p.y + 22 * this.zoom);
           }

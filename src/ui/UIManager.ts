@@ -80,11 +80,14 @@ export class UIManager {
       branchNav.id = 'branch-switcher-nav';
       branchNav.style.cssText = `
         position: absolute;
-        top: 64px;
+        top: 50px;
         left: 50%;
         transform: translateX(-50%);
         display: flex;
-        gap: 8px;
+        flex-direction: row;
+        align-items: center;
+        gap: 4px;
+        white-space: nowrap;
         z-index: 100;
         pointer-events: auto !important;
       `;
@@ -94,9 +97,10 @@ export class UIManager {
     let html = '';
     branches.forEach((b, idx) => {
       const isActive = idx === state.activeBranchIndex;
+      const shortName = idx === 0 ? 'Kadıköy #1' : `Nişantaşı #${idx + 1}`;
       html += `
-        <button class="top-nav-btn ${isActive ? 'active-branch' : ''}" data-branch="${idx}" style="background: ${isActive ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' : 'rgba(30, 20, 48, 0.85)'}; color: ${isActive ? 'black' : 'white'}; font-weight: 900; border: 2px solid #fbbf24; border-radius: 99px; padding: 6px 14px; font-size: 11px; cursor: pointer;">
-          🏰 ${b.salonName} ${isActive ? '🟢 (Aktif)' : ''}
+        <button class="top-nav-btn ${isActive ? 'active-branch' : ''}" data-branch="${idx}" style="background: ${isActive ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' : 'rgba(30, 20, 48, 0.85)'}; color: ${isActive ? 'black' : 'white'}; font-weight: 800; border: 1px solid #fbbf24; border-radius: 99px; padding: 2px 8px; font-size: 10px; height: 24px; cursor: pointer; white-space: nowrap;">
+          🏰 ${shortName} ${isActive ? '🟢' : ''}
         </button>
       `;
     });
