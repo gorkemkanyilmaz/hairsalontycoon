@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Luxe Women Beauty Salon Empire</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/index.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Isometric Canvas Render Container -->
+    <div id="canvas-container"></div>
+
+    <!-- HUD Overlay UI Layer -->
+    <div id="ui-layer">
+      <!-- Ultra-Slim Pinned Top Header Bar (iPhone 14 Pro Responsive Compatible!) -->
+      <header class="hud-header">
+        <!-- Compact Brand Badge (Far Left) -->
+        <div class="brand-badge">
+          <span class="brand-icon">✨</span>
+          <span class="brand-title">LUXE SALON</span>
+        </div>
+
+        <!-- Center Compact Action Buttons -->
+        <div class="top-nav-group">
+          <button class="top-nav-btn glow-btn" id="btn-upgrades">
+            <span class="btn-icon">⚡</span>
+            <span class="btn-text">Geliş</span>
+          </button>
+          <button class="top-nav-btn" id="btn-employees">
+            <span class="btn-icon">👩‍🎨</span>
+            <span class="btn-text">Ekip</span>
+          </button>
+          <button class="top-nav-btn" id="btn-products">
+            <span class="btn-icon">🧴</span>
+            <span class="btn-text">Stok</span>
+          </button>
+          <button class="top-nav-btn" id="btn-marketing">
+            <span class="btn-icon">🏰</span>
+            <span class="btn-text">Şube</span>
+          </button>
+        </div>
+
+        <!-- Economy Stats Pills (Far Right) -->
+        <div class="stats-container">
+          <div class="stat-pill cash-pill">
+            <span class="stat-icon">💵</span>
+            <span class="stat-value" id="cash-value">₺500</span>
+          </div>
+          <div class="stat-pill diamond-pill">
+            <span class="stat-icon">💎</span>
+            <span class="stat-value" id="diamond-value">25</span>
+          </div>
+          <div class="stat-pill rep-pill" id="rep-pill">
+            <span class="stat-icon">⭐</span>
+            <span class="stat-value" id="rep-value">4.8</span>
+          </div>
+          <div class="stat-pill level-pill">
+            <span class="level-badge" id="level-value">Lv.1</span>
+          </div>
+        </div>
+      </header>
+    </div>
+
+    <!-- Modal Popup Overlay -->
+    <div id="modal-overlay" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 id="modal-title">Başlık</h2>
+          <button id="modal-close-btn" class="close-btn">&times;</button>
+        </div>
+        <div id="modal-body" class="modal-body">
+          <!-- Dynamic Content Rendered Here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
