@@ -124,6 +124,34 @@ export class App {
   private handleCanvasClick(gridPos: { x: number; y: number }, screenX?: number, screenY?: number): void {
     const customers = this.customerManager.getCustomers();
 
+    // TUTORIAL OVERRIDE: Step 0 (Click Chair #1 / Customer)
+    if (this.tutorialManager.currentStep === TutorialStep.WELCOME_CLICK_CHAIR) {
+      const seatedCust = customers.find((c) => c.state === CustomerState.SEATED || c.state === CustomerState.ENTERING || c.state === CustomerState.WAITING_IN_QUEUE);
+      if (seatedCust) {
+        seatedCust.state = CustomerState.SEATED;
+        seatedCust.posX = 5;
+        seatedCust.posY = 3;
+        this.soundEngine.playScissorsCutSound();
+        this.haircutMinigame.startMinigame(seatedCust);
+        this.tutorialManager.saveTutorialStep(TutorialStep.MINIGAME_GUIDANCE);
+        this.tutorialManager.updateTutorialUI();
+        return;
+      }
+    }
+
+    // TUTORIAL OVERRIDE: Step 2 (Collect Cash at Reception)
+    if (this.tutorialManager.currentStep === TutorialStep.COLLECT_CASH_DESK) {
+      const payingCust = customers.find((c) => c.state === CustomerState.PAYING || c.earnedAmount > 0);
+      if (payingCust) {
+        this.customerManager.collectPayment(payingCust);
+        this.soundEngine.playCashRegisterSound();
+        this.showToast(`💵 +₺${payingCust.earnedAmount > 0 ? payingCust.earnedAmount : 150} Tahsil Edildi!`);
+        this.tutorialManager.saveTutorialStep(TutorialStep.OPEN_EQUIPMENT_MENU);
+        this.tutorialManager.updateTutorialUI();
+        return;
+      }
+    }
+
     // 0. Purchasable (locked) salon furniture — check before customer interactions
     if (this.handleLockedFurnitureClick(gridPos)) return;
 
@@ -151,7 +179,7 @@ export class App {
       const chairY = 3;
       const distToChair = Math.hypot(gridPos.x - chairX, gridPos.y - chairY);
       const distToCust = Math.hypot(gridPos.x - seatedCustomer.posX, gridPos.y - seatedCustomer.posY);
-      if (distToChair <= 1.5 || distToCust <= 1.5) {
+      if (distToChair <= 2.2 || distToCust <= 2.2) {
         this.soundEngine.playScissorsCutSound();
         this.haircutMinigame.startMinigame(seatedCustomer);
         return;
@@ -161,7 +189,7 @@ export class App {
     const payingCustomer = customers.find((c) => c.state === CustomerState.PAYING);
     if (payingCustomer) {
       const distToDesk = Math.hypot(gridPos.x - 12, gridPos.y - 6);
-      if (distToDesk <= 2.0) {
+      if (distToDesk <= 2.5) {
         this.customerManager.collectPayment(payingCustomer);
         this.soundEngine.playCashRegisterSound();
         this.showToast(`💵 +₺${payingCustomer.earnedAmount} Tahsil Edildi!`);
