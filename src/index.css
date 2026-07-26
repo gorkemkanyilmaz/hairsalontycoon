@@ -676,17 +676,26 @@ html, body {
 
 .tutorial-spotlight-ring {
   position: absolute;
-  border: 3px solid #fbbf24;
+  border: 3.5px solid #fbbf24;
   border-radius: 50%;
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55), 0 0 25px #fbbf24;
-  pointer-events: none;
-  animation: pulseSpotlight 1.5s infinite ease-in-out;
-  transition: all 0.4s ease;
+  box-shadow: 0 0 20px #fbbf24, inset 0 0 15px rgba(251, 191, 36, 0.5);
+  pointer-events: none !important;
+  z-index: 1000;
+  animation: pulseSpotlight 1.2s infinite ease-in-out;
+  transition: left 0.2s ease, top 0.2s ease, width 0.2s ease, height 0.2s ease;
 }
 
 @keyframes pulseSpotlight {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55), 0 0 25px #fbbf24; }
-  50% { transform: scale(1.1); box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.65), 0 0 40px #f472b6; }
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 15px #fbbf24, inset 0 0 10px rgba(251, 191, 36, 0.4);
+    border-color: #fbbf24;
+  }
+  50% {
+    transform: scale(1.12);
+    box-shadow: 0 0 35px #f472b6, inset 0 0 20px rgba(244, 114, 182, 0.6);
+    border-color: #f472b6;
+  }
 }
 
 /* Low Stock Alert Glow on HUD Stock Button */
