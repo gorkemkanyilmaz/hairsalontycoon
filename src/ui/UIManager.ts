@@ -411,7 +411,26 @@ export class UIManager {
         const isTraining = emp.trainingEndsTimestamp && emp.trainingEndsTimestamp > Date.now();
         const remainingSec = isTraining ? Math.max(1, Math.ceil((emp.trainingEndsTimestamp! - Date.now()) / 1000)) : 0;
         const cost = emp.level * 250;
-        const canAffordUpgrade = state.cash >= cost;
+        
+        let prereqFailed = false;
+        let prereqMsg = '';
+        if (emp.level >= 5) {
+          if (emp.role === 'JUNIOR_STYLIST' && emp.assignedChairIndex === 0) {
+            const scissorsLvl = activeBranch.upgrades?.quick_scissors?.level || 0;
+            if (scissorsLvl < 3) {
+              prereqFailed = true;
+              prereqMsg = '⚠️ Ön Koşul: Hızlı Fön & Makas Seviye 3/25 olmalıdır!';
+            }
+          } else if (emp.role === 'JUNIOR_STYLIST' && emp.assignedChairIndex === 1) {
+            const chairLvl = activeBranch.upgrades?.comfy_chair?.level || 0;
+            if (chairLvl < 5) {
+              prereqFailed = true;
+              prereqMsg = '⚠️ Ön Koşul: Ergonomik Kuaför Koltuğu Seviye 5/20 olmalıdır!';
+            }
+          }
+        }
+
+        const canAffordUpgrade = state.cash >= cost && !prereqFailed;
 
         html += `
           <div style="background: rgba(255,255,255,0.06); border: 1px solid #f472b6; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
@@ -419,7 +438,7 @@ export class UIManager {
               <div style="display: flex; align-items: center; gap: 12px;">
                 <span style="font-size: 32px;">${emp.role === 'RECEPTIONIST' ? '👩‍💼' : '👩‍🎨'}</span>
                 <div>
-                  <h4 style="margin: 0; color: white;">${emp.name} <span style="color: #fbbf24; font-size: 12px;">(Seviye ${emp.level})</span></h4>
+                  <h4 style="margin: 0; color: white;">${emp.name} <span style="color: #fbbf24; font-size: 12px;">(Seviye ${emp.level}/10)</span></h4>
                   <p style="margin: 2px 0 0 0; font-size: 12px; color: #f472b6;">
                     ${emp.role === 'RECEPTIONIST' ? 'Otomatik Kasiyer' : 'Otomatik Hair Stylist'} — Hız Bonus: +${Math.round((emp.speedMultiplier - 0.65) * 100)}%
                   </p>
@@ -429,6 +448,8 @@ export class UIManager {
                 ${isTraining ? `🎓 EĞİTİMDE (${remainingSec}s)` : 'ÇALIŞIYOR'}
               </span>
             </div>
+
+            ${prereqFailed ? `<div style="color: #ef476f; font-size: 11px; font-weight: 800;">${prereqMsg}</div>` : ''}
 
             <div style="display: flex; gap: 8px; justify-content: flex-end;">
               ${

@@ -962,6 +962,39 @@ export class IsometricRenderer {
         }
       });
 
+      // 3rd Barber Station & Chair #3 (👰 Gelin Saçı) at (11 + offsetX, 2)/(11 + offsetX, 3)
+      const station3Tile = { x: 11 + offsetX, y: 2 };
+      const chair3Tile = { x: 11 + offsetX, y: 3 };
+
+      entities.push({
+        gridX: station3Tile.x, gridY: station3Tile.y, sortKey: station3Tile.x + station3Tile.y - 0.1,
+        draw: (ctx) => {
+          const p = this.gridToScreen(station3Tile.x, station3Tile.y);
+          if (stationsCount >= 3) {
+            const stationSprite = spriteMgr.getBarberStationSprite(this.zoom);
+            ctx.drawImage(stationSprite, p.x - stationSprite.width / 2, p.y - stationSprite.height + 10 * this.zoom);
+          } else {
+            ctx.save();
+            ctx.globalAlpha = 0.25;
+            const stationSprite = spriteMgr.getBarberStationSprite(this.zoom);
+            ctx.drawImage(stationSprite, p.x - stationSprite.width / 2, p.y - stationSprite.height + 10 * this.zoom);
+            ctx.restore();
+            this.drawLockedBadge(p.x, p.y - stationSprite.height + 14 * this.zoom, '👰 Salon Büyüt');
+          }
+        }
+      });
+
+      entities.push({
+        gridX: chair3Tile.x, gridY: chair3Tile.y, sortKey: chair3Tile.x + chair3Tile.y,
+        draw: (ctx) => {
+          const p = this.gridToScreen(chair3Tile.x, chair3Tile.y);
+          if (stationsCount >= 3) {
+            const chairSprite = spriteMgr.getBarberChairSprite(this.zoom);
+            ctx.drawImage(chairSprite, p.x - chairSprite.width / 2, p.y - chairSprite.height + 25 * this.zoom);
+          }
+        }
+      });
+
       // 3D Retail Display Shelf at (12 + offsetX, 9) (if unlocked)
       const retailUnlocked = (bData.upgrades?.retail_shelf?.level || 0) >= 1;
       if (retailUnlocked) {

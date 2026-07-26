@@ -26,6 +26,8 @@ const createDefaultUpgrades = (): Record<string, IUpgradeNode> => ({
     baseCost: 120,
     costMultiplier: 1.30,
     requiredPlayerLevel: 1,
+    prerequisiteUpgradeId: 'quick_scissors',
+    prerequisiteDescription: 'Hızlı Fön & Makas Seviye 2 olmalıdır!',
     effects: { incomeMultiplier: 0.15 }
   },
   hair_wash_station: {
@@ -39,6 +41,8 @@ const createDefaultUpgrades = (): Record<string, IUpgradeNode> => ({
     baseCost: 450,
     costMultiplier: 1.0,
     requiredPlayerLevel: 1,
+    prerequisiteUpgradeId: 'quick_scissors',
+    prerequisiteDescription: 'Hızlı Fön & Makas Seviye 5 olmalıdır!',
     effects: { hairWashUnlocked: true }
   },
   retail_shelf: {
@@ -52,6 +56,8 @@ const createDefaultUpgrades = (): Record<string, IUpgradeNode> => ({
     baseCost: 400,
     costMultiplier: 1.0,
     requiredPlayerLevel: 1,
+    prerequisiteUpgradeId: 'hair_wash_station',
+    prerequisiteDescription: 'Önce Saç Yıkama Ünitesi satın alınmalıdır!',
     effects: { retailIncomeBonus: 50 }
   },
   vip_attractor: {
@@ -66,6 +72,21 @@ const createDefaultUpgrades = (): Record<string, IUpgradeNode> => ({
     costMultiplier: 1.5,
     requiredPlayerLevel: 1,
     effects: { vipFrequencyMultiplier: 3.0 }
+  },
+  salon_expansion: {
+    id: 'salon_expansion',
+    name: '📐 Salon Alanı Büyütme',
+    description: 'Salonu büyütür! 3. Kuaför Standını ve 1 Saatlik Lüks 👰 Gelin Saçı Hizmetini açar!',
+    icon: '📐',
+    category: UpgradeCategory.EXPANSION,
+    level: 0,
+    maxLevel: 2,
+    baseCost: 1200,
+    costMultiplier: 2.5,
+    requiredPlayerLevel: 1,
+    prerequisiteUpgradeId: 'comfy_chair',
+    prerequisiteDescription: 'Ergonomik Kuaför Koltuğu Seviye 3 olmalıdır!',
+    effects: { expansionUnlocked: true }
   }
 });
 
@@ -389,6 +410,12 @@ export class StateStore {
 
     upgrade.level += 1;
     this.addXP(35 * upgrade.level);
+
+    if (upgradeId === 'salon_expansion') {
+      activeBranch.barberStationsCount = Math.max(activeBranch.barberStationsCount || 1, 3);
+      activeBranch.chairsCount = Math.max(activeBranch.chairsCount || 1, 3);
+      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `📐 TEBRİKLER! SALON BÜYÜTÜLDÜ! 3. Kuaför Standı & 👰 Gelin Saçı Hizmeti Açıldı!`);
+    }
 
     this.eventBus.emit(GameEventType.UPGRADE_PURCHASED, upgrade);
     this.eventBus.emit(GameEventType.STATE_CHANGED, this.state);

@@ -93,7 +93,8 @@ export class CustomerManager {
       const offset = bIdx * 20;
       this.barberChairSlotsMap.set(bIdx, [
         { x: 5 + offset, y: 3, reservedBy: null },
-        { x: 8 + offset, y: 3, reservedBy: null }
+        { x: 8 + offset, y: 3, reservedBy: null },
+        { x: 11 + offset, y: 3, reservedBy: null }
       ]);
     }
     return this.barberChairSlotsMap.get(bIdx)!;
@@ -489,15 +490,21 @@ export class CustomerManager {
       customer.assignedChairIndex = undefined;
     }
 
-    if (qualityRating === 'POOR') {
+    const hasShampoo = this.stateStore.consumeShampooStock();
+
+    if (!hasShampoo || qualityRating === 'POOR') {
       customer.earnedAmount = 0;
-      this.stateStore.addGoogleReview(
-        customer.name,
-        1,
-        `${customer.wish.color} saç istedim ama tamamen alakasız işlem yapıldı! 😡 ₺0 Bahşiş! 1 Yıldız!`
-      );
-      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `😡 ${customer.name} YANLIŞ İŞLEMDEN DOLAYI 1 YILDIZ VERDİ! (₺0 Bahşiş!)`);
+      customer.qualityRating = 'POOR';
+      const reason = !hasShampoo ? 'Salonda hiç şampuan kalmamıştı! Saçımı yıkayamadılar!' : `${customer.wish.color} saç istedim ama tamamen alakasız işlem yapıldı!`;
+      this.stateStore.addGoogleReview(customer.name, 1, `${reason} 😡 ₺0 Bahşiş! 1 Yıldız!`);
+      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `😡 ${customer.name} KÖTÜ DENEYİMDEN DOLAYI 1 YILDIZ VERDİ! (₺0 Bahşiş!)`);
     } else {
+      // Transformation Sparkle Hair Color Change!
+      if (customer.wish.color.includes('Platin')) customer.avatarColor = '#fef08a';
+      else if (customer.wish.color.includes('Gül')) customer.avatarColor = '#f472b6';
+      else if (customer.wish.color.includes('Karamel')) customer.avatarColor = '#f59e0b';
+      else if (customer.wish.color.includes('Çikolata')) customer.avatarColor = '#78350f';
+
       let basePrice = customer.customerClass === CustomerClass.VIP ? 120 : 35;
       let tip = customer.customerClass === CustomerClass.VIP ? 60 : 15;
 
@@ -510,6 +517,8 @@ export class CustomerManager {
           `Harika kuaför salonu! ${customer.wish.color} saç stilim mükemmel oldu! ⭐⭐⭐⭐⭐`
         );
       }
+
+      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `✨ PARLAMA EFEKTİ! ${customer.name} tam istediği ${customer.wish.color} saç rengine kavuştu!`);
 
       const activeBranch = this.stateStore.getActiveBranch();
       const chairMultiplier = 1 + ((activeBranch.upgrades?.comfy_chair?.level || 0) * 0.15);
