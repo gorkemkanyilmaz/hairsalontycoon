@@ -803,6 +803,10 @@ html, body {
   pointer-events: auto !important;
 }
 
+.btn-show-quest-toggle.hidden {
+  display: none !important;
+}
+
 .btn-show-quest-toggle:hover {
   transform: translateX(-50%) scale(1.06);
   box-shadow: 0 8px 25px rgba(245, 158, 11, 0.7);

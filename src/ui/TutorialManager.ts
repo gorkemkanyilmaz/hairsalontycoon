@@ -424,20 +424,26 @@ export class TutorialManager {
 
     if (this.currentStep === TutorialStep.COMPLETED) {
       this.overlayElement.classList.add('hidden');
-      showToggleBtn?.classList.add('hidden');
+      if (showToggleBtn) showToggleBtn.style.display = 'none';
       if (this.spotlightRing) this.spotlightRing.style.display = 'none';
       return;
     }
 
     if (this.isDismissed) {
       this.overlayElement.classList.add('hidden');
-      showToggleBtn?.classList.remove('hidden');
+      if (showToggleBtn) {
+        showToggleBtn.style.display = 'block';
+        showToggleBtn.classList.remove('hidden');
+      }
       if (this.spotlightRing) this.spotlightRing.style.display = 'none';
       return;
     }
 
     this.overlayElement.classList.remove('hidden');
-    showToggleBtn?.classList.add('hidden');
+    if (showToggleBtn) {
+      showToggleBtn.style.display = 'none';
+      showToggleBtn.classList.add('hidden');
+    }
 
     const customers = CustomerManager.getInstance().getCustomers();
     const seatedCust = customers.find((c: any) => c.state === CustomerState.SEATED);
