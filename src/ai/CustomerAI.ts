@@ -297,12 +297,6 @@ export class CustomerManager {
 
     const randomColor = isVIP ? '#fbbf24' : FEMALE_AVATAR_COLORS[Math.floor(Math.random() * FEMALE_AVATAR_COLORS.length)];
 
-    const randomColorWish = COLOR_OPTIONS[Math.floor(Math.random() * COLOR_OPTIONS.length)];
-    const randomCutWish = CUT_OPTIONS[Math.floor(Math.random() * CUT_OPTIONS.length)];
-    const randomFinishWish = FINISH_OPTIONS[Math.floor(Math.random() * FINISH_OPTIONS.length)];
-
-    const isTutorialStep0 = TutorialManager.getInstance().currentStep === TutorialStep.WELCOME_CLICK_CHAIR && bIdx === 0;
-
     let targetX = 5 + bIdx * 20;
     let targetY = 3;
     let assignedWaitingIdx: number | undefined = undefined;
@@ -320,15 +314,19 @@ export class CustomerManager {
       targetY = t.y;
     }
 
+    const randomColorWish = COLOR_OPTIONS[Math.floor(Math.random() * COLOR_OPTIONS.length)];
+    const randomCutWish = CUT_OPTIONS[Math.floor(Math.random() * CUT_OPTIONS.length)];
+    const randomFinishWish = FINISH_OPTIONS[Math.floor(Math.random() * FINISH_OPTIONS.length)];
+
     const newCustomer: ICustomerNPC = {
       id: 'cust_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
       name: randomName,
       customerClass: isVIP ? CustomerClass.VIP : CustomerClass.STANDARD,
-      state: isTutorialStep0 ? CustomerState.SEATED : CustomerState.ENTERING,
+      state: CustomerState.ENTERING,
       patience: isVIP ? 85 : 100,
       maxPatience: 100,
-      posX: isTutorialStep0 ? targetX : doorTile.x,
-      posY: isTutorialStep0 ? targetY : doorTile.y,
+      posX: doorTile.x,
+      posY: doorTile.y,
       targetX: targetX,
       targetY: targetY,
       speed: isVIP ? 4.2 : 3.6,
@@ -346,7 +344,7 @@ export class CustomerManager {
         cut: randomCutWish,
         finish: randomFinishWish
       },
-      isWalking: !isTutorialStep0,
+      isWalking: true,
       walkAnimPhase: 0,
       spawnTimestamp: Date.now(),
       branchIndex: bIdx

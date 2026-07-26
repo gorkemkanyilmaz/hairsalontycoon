@@ -215,9 +215,17 @@ export class TutorialManager {
 
     this.overlayElement.classList.remove('hidden');
 
+    const custMgr = (this as any).customerManager || (window as any).customerMgr;
+    const customers = custMgr ? custMgr.getCustomers() : [];
+    const seatedCust = customers.find((c: any) => c.state === 'SEATED');
+
     switch (this.currentStep) {
       case TutorialStep.WELCOME_CLICK_CHAIR:
-        this.bannerText.textContent = '✨ ADIM 1: LUXE BEAUTY SALONA HOŞ GELDİN! Parlayan altın halkadaki 1. Koltuğa tıklayarak saç yapımını başlat!';
+        if (!seatedCust) {
+          this.bannerText.textContent = '⏳ ADIM 1: İlk Müşteri Salona Giriyor... 1. Koltuğa Oturmasını Bekleyin...';
+        } else {
+          this.bannerText.textContent = '✨ ADIM 1: Müşterin 1. Koltuğa Oturdu! Parlayan altın halkadaki Müşteriye tıklayarak saç yapımını başlat!';
+        }
         break;
 
       case TutorialStep.MINIGAME_GUIDANCE:
@@ -254,12 +262,18 @@ export class TutorialManager {
       return;
     }
 
-    this.spotlightRing.style.display = 'block';
-
     const canvas = document.querySelector('#canvas-container canvas') as HTMLCanvasElement;
     const canvasRect = canvas ? canvas.getBoundingClientRect() : { left: 0, top: 0 };
+    const custMgr = (this as any).customerManager || (window as any).customerMgr;
+    const customers = custMgr ? custMgr.getCustomers() : [];
 
-    if (this.currentStep === TutorialStep.WELCOME_CLICK_CHAIR && renderer) {
+    if (this.currentStep === TutorialStep.WELCOME_CLICK_CHAIR) {
+      const seatedCust = customers.find((c: any) => c.state === 'SEATED');
+      if (!seatedCust || !renderer) {
+        this.spotlightRing.style.display = 'none';
+        return;
+      }
+      this.spotlightRing.style.display = 'block';
       const p = renderer.gridToScreen(5, 3);
       const screenX = canvasRect.left + p.x;
       const screenY = canvasRect.top + p.y;
@@ -268,6 +282,7 @@ export class TutorialManager {
       this.spotlightRing.style.width = `90px`;
       this.spotlightRing.style.height = `90px`;
     } else if (this.currentStep === TutorialStep.COLLECT_CASH_DESK && renderer) {
+      this.spotlightRing.style.display = 'block';
       const p = renderer.gridToScreen(12, 6);
       const screenX = canvasRect.left + p.x;
       const screenY = canvasRect.top + p.y;
@@ -278,31 +293,41 @@ export class TutorialManager {
     } else if (this.currentStep === TutorialStep.OPEN_EQUIPMENT_MENU) {
       const btn = document.getElementById('btn-employees');
       if (btn) {
+        this.spotlightRing.style.display = 'block';
         const rect = btn.getBoundingClientRect();
         this.spotlightRing.style.left = `${rect.left - 6}px`;
         this.spotlightRing.style.top = `${rect.top - 6}px`;
         this.spotlightRing.style.width = `${rect.width + 12}px`;
         this.spotlightRing.style.height = `${rect.height + 12}px`;
+      } else {
+        this.spotlightRing.style.display = 'none';
       }
     } else if (this.currentStep === TutorialStep.HIRE_CANSU) {
       const btn = document.getElementById('btn-hire-stylist-1');
       if (btn) {
+        this.spotlightRing.style.display = 'block';
         const rect = btn.getBoundingClientRect();
         this.spotlightRing.style.left = `${rect.left - 6}px`;
         this.spotlightRing.style.top = `${rect.top - 6}px`;
         this.spotlightRing.style.width = `${rect.width + 12}px`;
         this.spotlightRing.style.height = `${rect.height + 12}px`;
+      } else {
+        this.spotlightRing.style.display = 'none';
       }
     } else if (this.currentStep === TutorialStep.TRAIN_EMPLOYEE) {
       const btn = document.querySelector('[id^="btn-lvl-"]');
       if (btn) {
+        this.spotlightRing.style.display = 'block';
         const rect = btn.getBoundingClientRect();
         this.spotlightRing.style.left = `${rect.left - 6}px`;
         this.spotlightRing.style.top = `${rect.top - 6}px`;
         this.spotlightRing.style.width = `${rect.width + 12}px`;
         this.spotlightRing.style.height = `${rect.height + 12}px`;
+      } else {
+        this.spotlightRing.style.display = 'none';
       }
     } else if (this.currentStep === TutorialStep.BUY_SECOND_STATION && renderer) {
+      this.spotlightRing.style.display = 'block';
       const p = renderer.gridToScreen(8, 2);
       const screenX = canvasRect.left + p.x;
       const screenY = canvasRect.top + p.y;
