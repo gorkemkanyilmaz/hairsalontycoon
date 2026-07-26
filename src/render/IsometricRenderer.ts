@@ -3,6 +3,7 @@ import { EventBus } from '../core/EventBus';
 import { CustomerManager, ICustomerNPC } from '../ai/CustomerAI';
 import { CustomerState, CustomerClass, GameEventType } from '../core/Types';
 import { SpriteManager } from './SpriteManager';
+import { TutorialManager } from '../ui/TutorialManager';
 
 export interface IIsoPoint {
   x: number;
@@ -1155,12 +1156,7 @@ let bubbleText = '';
     entities.forEach((ent) => ent.draw(this.ctx, this));
 
     // Update Pulsing Tutorial Spotlight Ring position every frame!
-    try {
-      const tutorialMgr = (window as any).tutorialMgr || (import('../ui/TutorialManager').then(m => m.TutorialManager.getInstance()));
-      if (tutorialMgr && typeof tutorialMgr.positionSpotlightForStep === 'function') {
-        tutorialMgr.positionSpotlightForStep(this);
-      }
-    } catch (e) {}
+    TutorialManager.getInstance().positionSpotlightForStep(this);
   }
 
   private drawNameBadgePill(name: string, x: number, y: number, borderColor: string = '#f472b6'): void {

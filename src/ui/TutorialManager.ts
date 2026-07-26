@@ -60,7 +60,6 @@ export class TutorialManager {
       overlay.id = 'tutorial-overlay';
       overlay.className = this.currentStep === TutorialStep.COMPLETED ? 'hidden' : '';
       overlay.innerHTML = `
-        <div class="tutorial-spotlight-ring" id="tutorial-spotlight" style="display: none;"></div>
         <div class="tutorial-banner-box" id="tutorial-banner">
           <div style="font-size: 28px; margin-bottom: 4px;">✨</div>
           <h4 id="tutorial-title" style="margin: 0 0 6px 0; color: #fbbf24; font-size: 16px; font-weight: 800;">EĞİTİCİ REHBER</h4>
@@ -70,9 +69,18 @@ export class TutorialManager {
       document.body.appendChild(overlay);
     }
 
+    let spotlight = document.getElementById('tutorial-spotlight');
+    if (!spotlight) {
+      spotlight = document.createElement('div');
+      spotlight.id = 'tutorial-spotlight';
+      spotlight.className = 'tutorial-spotlight-ring';
+      spotlight.style.cssText = 'position: fixed; display: none; z-index: 99999; pointer-events: none !important;';
+      document.body.appendChild(spotlight);
+    }
+
     this.overlayElement = overlay;
     this.bannerText = document.getElementById('tutorial-text')!;
-    this.spotlightRing = document.getElementById('tutorial-spotlight')!;
+    this.spotlightRing = spotlight;
 
     this.updateTutorialUI();
   }
@@ -170,16 +178,23 @@ export class TutorialManager {
 
     this.spotlightRing.style.display = 'block';
 
+    const canvas = document.querySelector('#canvas-container canvas') as HTMLCanvasElement;
+    const canvasRect = canvas ? canvas.getBoundingClientRect() : { left: 0, top: 0 };
+
     if (this.currentStep === TutorialStep.WELCOME_CLICK_CHAIR && renderer) {
       const p = renderer.gridToScreen(5, 3);
-      this.spotlightRing.style.left = `${p.x - 45}px`;
-      this.spotlightRing.style.top = `${p.y - 65}px`;
+      const screenX = canvasRect.left + p.x;
+      const screenY = canvasRect.top + p.y;
+      this.spotlightRing.style.left = `${screenX - 45}px`;
+      this.spotlightRing.style.top = `${screenY - 65}px`;
       this.spotlightRing.style.width = `90px`;
       this.spotlightRing.style.height = `90px`;
     } else if (this.currentStep === TutorialStep.COLLECT_CASH_DESK && renderer) {
       const p = renderer.gridToScreen(12, 6);
-      this.spotlightRing.style.left = `${p.x - 45}px`;
-      this.spotlightRing.style.top = `${p.y - 65}px`;
+      const screenX = canvasRect.left + p.x;
+      const screenY = canvasRect.top + p.y;
+      this.spotlightRing.style.left = `${screenX - 45}px`;
+      this.spotlightRing.style.top = `${screenY - 65}px`;
       this.spotlightRing.style.width = `90px`;
       this.spotlightRing.style.height = `90px`;
     } else if (this.currentStep === TutorialStep.OPEN_EQUIPMENT_MENU) {
@@ -211,8 +226,10 @@ export class TutorialManager {
       }
     } else if (this.currentStep === TutorialStep.BUY_SECOND_STATION && renderer) {
       const p = renderer.gridToScreen(8, 2);
-      this.spotlightRing.style.left = `${p.x - 45}px`;
-      this.spotlightRing.style.top = `${p.y - 65}px`;
+      const screenX = canvasRect.left + p.x;
+      const screenY = canvasRect.top + p.y;
+      this.spotlightRing.style.left = `${screenX - 45}px`;
+      this.spotlightRing.style.top = `${screenY - 65}px`;
       this.spotlightRing.style.width = `90px`;
       this.spotlightRing.style.height = `90px`;
     }
