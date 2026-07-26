@@ -301,6 +301,11 @@ export class TutorialManager {
       }
     });
 
+    this.eventBus.on(GameEventType.CASH_CHANGED, (cash: number) => {
+      this.checkCashPrerequisites(cash);
+      this.updateTutorialUI();
+    });
+
     this.eventBus.on(GameEventType.STATE_CHANGED, () => {
       const activeBranch = this.stateStore.getActiveBranch();
       const cash = this.stateStore.getState().cash;
