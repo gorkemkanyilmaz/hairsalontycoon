@@ -1,6 +1,6 @@
 import { StateStore } from '../core/StateStore';
 import { EventBus } from '../core/EventBus';
-import { GameEventType, IUpgradeNode, IGoogleReview, EmployeeState } from '../core/Types';
+import { GameEventType, IUpgradeNode, IGoogleReview } from '../core/Types';
 
 export class UIManager {
   private stateStore: StateStore;
@@ -28,8 +28,8 @@ export class UIManager {
   }
 
   private setupListeners(): void {
-    this.modalCloseBtn.addEventListener('click', () => this.closeModal());
-    this.modalOverlay.addEventListener('click', (e) => {
+    this.modalCloseBtn?.addEventListener('click', () => this.closeModal());
+    this.modalOverlay?.addEventListener('click', (e) => {
       if (e.target === this.modalOverlay) this.closeModal();
     });
 
@@ -58,7 +58,7 @@ export class UIManager {
       if (!this.modalOverlay.classList.contains('hidden')) {
         if (this.modalTitle.textContent?.includes('Geliştirmeler')) {
           this.renderUpgradesList();
-        } else if (this.modalTitle.textContent?.includes('Çalışanlar')) {
+        } else if (this.modalTitle.textContent?.includes('Çalışan')) {
           this.renderEmployeesList();
         }
       }
@@ -125,7 +125,6 @@ export class UIManager {
     this.modalOverlay.classList.add('hidden');
   }
 
-  // Modal for purchasing a locked salon furniture item directly from the canvas
   public openBuyFurnitureModal(kind: 'sofa' | 'station', slotIndex: number): void {
     const state = this.stateStore.getState();
     const branch = this.stateStore.getActiveBranch();
@@ -133,31 +132,37 @@ export class UIManager {
     const cost = isSofa ? 150 : 500;
     const title = isSofa ? '🛋️ Bekleme Koltuğu Satın Al' : '✂️ 2. Kuaför İstasyonu Satın Al';
     const desc = isSofa
-      ? 'Salona bir beklema koltuğu daha ekle. Aynı anda bekleme salonunda 1 ek müşteri bekleyebilir. (Maksimum 3 koltuk)'
-      : '2. kuaför istasyonu ve koltuğunu kur. Aynı anda 2 müşteriye hizmet verebilirsin. Oto-kuaför Selin K. için gereklidir.';
+      ? `Salona ${slotIndex + 1}. Bekleme Koltuğunu ekleyin! Daha fazla müşteri sırada bekleyebilir.`
+      : `Salona 2. Kuaför Aynasını ve Koltuğunu ekleyin! İkinci bir kuaför çalıştırmanıza olanak tanır.`;
+
     const canAfford = state.cash >= cost;
-    const btnText = isSofa ? `🛋️ ₺150 ile Kur` : `✂️ ₺500 ile Kur`;
 
     this.openModal(title, `
-      <div style="padding: 20px; color: white; display: flex; flex-direction: column; gap: 16px; align-items: center; text-align: center;">
-        <div style="font-size: 56px;">${isSofa ? '🛋️' : '✂️'}</div>
-        <div>
-          <h3 style="margin: 0 0 6px 0; color: #fbbf24;">${isSofa ? 'Bekleme Koltuğu' : '2. Kuaför İstasyonu'}</h3>
-          <p style="margin: 0; color: #cbd5e1; font-size: 13px; max-width: 360px;">${desc}</p>
+      <div style="padding: 16px; color: white; display: flex; flex-direction: column; gap: 16px; text-align: center;">
+        <div style="font-size: 54px;">${isSofa ? '🛋️' : '✂️'}</div>
+        <h3 style="margin: 0; color: #fbbf24;">${title}</h3>
+        <p style="margin: 0; font-size: 13px; color: #cbd5e1;">${desc}</p>
+        <div style="background: rgba(255,255,255,0.06); border: 1px solid #fbbf24; border-radius: 14px; padding: 12px; font-weight: 800; color: #06d6a0;">
+          Fiyat: ₺${cost}
         </div>
-        <div style="background: rgba(6, 214, 160, 0.15); border: 1px solid #06d6a0; border-radius: 14px; padding: 10px 18px;">
-          <span style="color: #06d6a0; font-weight: 900; font-size: 15px;">₺${cost}</span>
-          <span style="color:#94a3b8; font-size: 12px; margin-left: 8px;">(Nakit: ₺${Math.floor(state.cash)})</span>
-        </div>
-        <button class="btn-upgrade ${canAfford ? '' : 'disabled'}" id="btn-confirm-buy-furniture" style="width: 100%; max-width: 320px;">
-          ${btnText}
+        <button class="btn-upgrade ${canAfford ? '' : 'disabled'}" id="btn-confirm-buy-furniture">
+          ${canAfford ? `₺${cost} İLE SATIN AL` : `Yetersiz Bakiye (₺${cost})`}
         </button>
       </div>
     `);
 
     document.getElementById('btn-confirm-buy-furniture')?.addEventListener('click', () => {
-      const ok = isSofa ? this.stateStore.buyWaitingSofa() : this.stateStore.buyBarberStation();
-      if (ok) {
+      if (canAfford) {
+        this.stateStore.deductCash(cost);
+        if (isSofa) {
+          branch.waitingSofasCount = Math.max(branch.waitingSofasCount || 1, slotIndex + 1);
+        } else {
+          branch.barberStationsCount = 2;
+          branch.chairsCount = 2;
+        }
+        this.stateStore.saveState();
+        this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `✨ TEBRİKLER! ${isSofa ? 'YENİ BEKLEME KOLTUĞU' : '2. KUAFÖR İSTASYONU'} KURULDU!`);
+        this.eventBus.emit(GameEventType.STATE_CHANGED, state);
         this.closeModal();
       }
     });
@@ -272,7 +277,7 @@ export class UIManager {
             <span style="font-size: 32px;">📢</span>
             <div>
               <h3 style="margin: 0; color: #38bdf8; font-size: 16px;">Sosyal Medya & Reklam Kampanyası</h3>
-              <p style="margin: 2px 0 0 0; font-size: 12px; color: #cbd5e1;">Bekleme koltuklarını doldurun! Müşteri geliş hızını 2 katına çıkarır.</p>
+              <p style="margin: 2px 0 0 0; font-size: 12px; color: #cbd5e1;">Bekleme koltuklarını doldurun! Müşteri geliş hızını 2.5 katına çıkarır.</p>
             </div>
           </div>
 
@@ -289,7 +294,7 @@ export class UIManager {
           <h3 style="margin: 0 0 4px 0; color: #ef476f; font-size: 16px;">Fashion Week VIP Kırmızı Halı Defilesi</h3>
           <p style="margin: 0 0 10px 0; font-size: 12px; color: #fbcfe8;">25 saniye boyunca <strong>5x Gelir & +10 Elmas!</strong></p>
           <button class="btn-upgrade" id="btn-start-fashion" ${state.isFashionEventActive ? 'disabled' : ''}>
-            ${state.isFashionEventActive ? '💃 DEFLİE DEVAM EDİYOR...' : '💃 DEFİLE ETKİNLİĞİNİ BAŞLAT (+10 💎)'}
+            ${state.isFashionEventActive ? '💃 DEFİLE DEVAM EDİYOR...' : '💃 DEFİLE ETKİNLİĞİNİ BAŞLAT (+10 💎)'}
           </button>
         </div>
 
@@ -404,6 +409,7 @@ export class UIManager {
     } else {
       employees.forEach((emp) => {
         const isTraining = emp.trainingEndsTimestamp && emp.trainingEndsTimestamp > Date.now();
+        const remainingSec = isTraining ? Math.max(1, Math.ceil((emp.trainingEndsTimestamp! - Date.now()) / 1000)) : 0;
         const cost = emp.level * 250;
         const canAffordUpgrade = state.cash >= cost;
 
@@ -420,7 +426,7 @@ export class UIManager {
                 </div>
               </div>
               <span style="background: ${isTraining ? '#f59e0b' : '#06d6a0'}; color: #000; font-weight: 800; font-size: 11px; padding: 4px 10px; border-radius: 99px;">
-                ${isTraining ? '🎓 EĞİTİMDE' : 'ÇALIŞIYOR'}
+                ${isTraining ? `🎓 EĞİTİMDE (${remainingSec}s)` : 'ÇALIŞIYOR'}
               </span>
             </div>
 
@@ -447,18 +453,22 @@ export class UIManager {
     const stationsCount = activeBranch.barberStationsCount || 1;
     const stylist1 = employees.find((e) => e.assignedChairIndex === 0);
 
-    // 1) Cansu A. - Junior Stylist for Chair #1 — ₺600, no prerequisite
+    // 1) Cansu A. - Junior Stylist for Chair #1 — ₺600, prerequisite: 2. istasyon (barberStationsCount >= 2)
     if (!hasStylist1) {
-      const canAfford = state.cash >= 600;
+      const stationOk = stationsCount >= 2;
+      const canAfford = state.cash >= 600 && stationOk;
       html += `
-        <div style="background: linear-gradient(135deg, rgba(6, 214, 160, 0.18), rgba(247, 37, 133, 0.15)); border: 2px solid #06d6a0; border-radius: 16px; padding: 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-          <div>
-            <h4 style="margin: 0 0 4px 0; color: #06d6a0;">👩‍🎨 Cansu A. (1. Kuaför — Koltuk #1)</h4>
-            <p style="margin: 0; font-size: 12px; color: #cbd5e1;">1. kuaför koltuğundaki (5, 3) müşterilerin saçını otomatik yapar.</p>
+        <div style="background: linear-gradient(135deg, rgba(6, 214, 160, 0.18), rgba(247, 37, 133, 0.15)); border: 2px solid ${stationOk ? '#06d6a0' : '#ef476f'}; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+            <div>
+              <h4 style="margin: 0 0 4px 0; color: #06d6a0;">👩‍🎨 Cansu A. (1. Kuaför — Koltuk #1)</h4>
+              <p style="margin: 0; font-size: 12px; color: #cbd5e1;">1. kuaför koltuğundaki (5, 3) müşterilerin saçını otomatik yapar.</p>
+            </div>
+            <button class="btn-upgrade ${canAfford ? '' : 'disabled'}" id="btn-hire-stylist-1" style="white-space: nowrap;">
+              ₺600 İşe Al
+            </button>
           </div>
-          <button class="btn-upgrade ${canAfford ? '' : 'disabled'}" id="btn-hire-stylist-1" style="white-space: nowrap;">
-            ₺600 İşe Al
-          </button>
+          ${!stationOk ? `<div style="color: #ef476f; font-size: 11px; font-weight: 800;">⚠️ Ön Koşul: Önce 2. Kuaför İstasyonu (₺500) haritadan satın alınmalıdır!</div>` : ''}
         </div>
       `;
     }
@@ -487,7 +497,7 @@ export class UIManager {
       const cansuLevel5 = !!stylist1 && stylist1.level >= 5;
       const canAfford = state.cash >= 800 && stationOk && cansuLevel5;
       let prereqNote = '';
-      if (!stationOk) prereqNote = `⚠️ Ön Koşul: Önce 2. Kuaför İstasyonunu (₺500) kasadaki imleçten satın al!`;
+      if (!stationOk) prereqNote = `⚠️ Ön Koşul: Önce 2. Kuaför İstasyonu (₺500) haritadan satın alınmalıdır!`;
       else if (!cansuLevel5) prereqNote = `⚠️ Ön Koşul: 1. Kuaför Cansu A. Seviye 5 olmalı (Şu an: Lv.${stylist1?.level || 1})`;
 
       html += `
@@ -518,7 +528,6 @@ export class UIManager {
     });
 
     document.getElementById('btn-hire-receptionist')?.addEventListener('click', () => {
-      if (state.playerLevel < 2) return;
       if (this.stateStore.deductCash(850)) {
         this.stateStore.hireEmployee('Pelin K.', 'RECEPTIONIST', -1);
         this.renderEmployeesList();
@@ -526,10 +535,6 @@ export class UIManager {
     });
 
     document.getElementById('btn-hire-stylist-2')?.addEventListener('click', () => {
-      const stationOk = (this.stateStore.getActiveBranch().barberStationsCount || 1) >= 2;
-      const cansu = this.stateStore.getState().employees.find((e) => e.assignedChairIndex === 0);
-      const cansuLevel5 = !!cansu && cansu.level >= 5;
-      if (!stationOk || !cansuLevel5) return;
       if (this.stateStore.deductCash(800)) {
         this.stateStore.hireEmployee('Selin K.', 'JUNIOR_STYLIST', 1);
         this.renderEmployeesList();

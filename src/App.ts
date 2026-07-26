@@ -128,12 +128,14 @@ export class App {
       }
     }
 
-    // 2. Fallback Grid Area Hit Testing
+    // 2. Fallback Grid Area Hit Testing (Tight 1.5 radius for precision!)
     const seatedCustomer = customers.find((c) => c.state === CustomerState.SEATED);
     if (seatedCustomer) {
-      const distToChair = Math.hypot(gridPos.x - 5, gridPos.y - 3);
+      const chairX = seatedCustomer.assignedChairIndex === 1 ? 8 : 5;
+      const chairY = 3;
+      const distToChair = Math.hypot(gridPos.x - chairX, gridPos.y - chairY);
       const distToCust = Math.hypot(gridPos.x - seatedCustomer.posX, gridPos.y - seatedCustomer.posY);
-      if (distToChair <= 4.0 || distToCust <= 4.0) {
+      if (distToChair <= 1.5 || distToCust <= 1.5) {
         this.soundEngine.playScissorsCutSound();
         this.haircutMinigame.startMinigame(seatedCustomer);
         return;
@@ -143,7 +145,7 @@ export class App {
     const payingCustomer = customers.find((c) => c.state === CustomerState.PAYING);
     if (payingCustomer) {
       const distToDesk = Math.hypot(gridPos.x - 12, gridPos.y - 6);
-      if (distToDesk <= 4.0) {
+      if (distToDesk <= 2.0) {
         this.customerManager.collectPayment(payingCustomer);
         this.soundEngine.playCashRegisterSound();
         this.showToast(`💵 +₺${payingCustomer.earnedAmount} Tahsil Edildi!`);
@@ -162,7 +164,7 @@ export class App {
     for (let i = 0; i < sofaTiles.length; i++) {
       if (i < sofasCount) continue; // already unlocked
       const t = sofaTiles[i];
-      if (Math.hypot(gridPos.x - t.x, gridPos.y - t.y) <= 1.6) {
+      if (Math.hypot(gridPos.x - t.x, gridPos.y - t.y) <= 1.8) {
         this.uiManager.openBuyFurnitureModal('sofa', i);
         return true;
       }
@@ -170,7 +172,7 @@ export class App {
 
     // Locked 2nd barber station tiles: (8,2) mirror + (8,3) chair
     if (stationsCount < 2) {
-      if (Math.hypot(gridPos.x - 8, gridPos.y - 2) <= 1.8 || Math.hypot(gridPos.x - 8, gridPos.y - 3) <= 1.8) {
+      if (Math.hypot(gridPos.x - 8, gridPos.y - 2) <= 2.5 || Math.hypot(gridPos.x - 8, gridPos.y - 3) <= 2.5) {
         this.uiManager.openBuyFurnitureModal('station', 1);
         return true;
       }

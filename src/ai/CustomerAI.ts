@@ -34,6 +34,7 @@ export interface ICustomerNPC {
   isWalking: boolean;
   walkAnimPhase: number;
   spawnTimestamp: number;
+  collectProgress?: number;
 }
 
 export interface ISeatSlot {

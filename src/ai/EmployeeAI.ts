@@ -48,6 +48,11 @@ export class EmployeeManager {
 
     if (emp.role === 'JUNIOR_STYLIST' || emp.role === 'SENIOR_STYLIST') {
       // Automatic Hair Stylist AI Logic
+      const homeX = emp.assignedChairIndex === 1 ? 8 : 5;
+      const homeY = 2;
+      emp.targetX = homeX;
+      emp.targetY = homeY;
+
       const chairIndex = emp.assignedChairIndex;
       const seatedCustomer = customers.find(
         (c) => c.assignedChairIndex === chairIndex && (c.state === CustomerState.SEATED || c.state === CustomerState.RECEIVING_SERVICE)
@@ -71,13 +76,28 @@ export class EmployeeManager {
         }
       }
     } else if (emp.role === 'RECEPTIONIST') {
-      // Automatic Receptionist Cash Collection AI Logic
+      // Automatic Receptionist Cash Collection AI Logic (Takes 4.0s at Level 1, speeds up with Level!)
+      emp.targetX = 12;
+      emp.targetY = 5;
+
       const payingCustomer = customers.find((c) => c.state === CustomerState.PAYING);
       if (payingCustomer) {
         const distToDesk = Math.hypot(payingCustomer.posX - 12, payingCustomer.posY - 6);
-        if (distToDesk < 1.0) {
-          this.customerManager.collectPayment(payingCustomer);
-          this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `👩‍💼 ${emp.name} (Kasiyer) +₺${payingCustomer.earnedAmount} Tahsil Etti!`);
+        if (distToDesk < 1.2) {
+          // Initialize payment collection progress if not started
+          if (payingCustomer.collectProgress === undefined) {
+            payingCustomer.collectProgress = 0;
+          }
+
+          // Level 1 = 4.0s duration, Level 2 = 3.0s, Level 5 = 1.5s
+          const durationSec = Math.max(1.2, 4.5 - emp.level * 0.7);
+          payingCustomer.collectProgress += deltaSec * (100 / durationSec);
+
+          if (payingCustomer.collectProgress >= 100) {
+            payingCustomer.collectProgress = 100;
+            this.customerManager.collectPayment(payingCustomer);
+            this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `👩‍💼 ${emp.name} (Kasiyer) +₺${payingCustomer.earnedAmount} Tahsil Etti!`);
+          }
         }
       }
     }
