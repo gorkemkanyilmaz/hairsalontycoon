@@ -531,6 +531,49 @@ export class IsometricRenderer {
     this.ctx.restore();
   }
 
+  // Large High-Contrast Training Badge Pill shown above employees on training
+  private drawTrainingPill(x: number, y: number, remainingSec: number): void {
+    const z = this.zoom;
+    this.ctx.save();
+
+    const text1 = `🎓 EĞİTİMDE (${remainingSec}s)`;
+    const text2 = `⚡ 10💎 HIZLANDIR`;
+
+    this.ctx.font = `bold ${Math.max(12, 13 * z)}px Outfit, sans-serif`;
+    const w1 = this.ctx.measureText(text1).width;
+    const w2 = this.ctx.measureText(text2).width;
+    const pillW = Math.max(140 * z, Math.max(w1, w2) + 24 * z);
+    const pillH = 42 * z;
+    const px = x - pillW / 2;
+    const py = y - pillH / 2;
+
+    // Bobbing animation for attention
+    const bob = Math.sin(Date.now() / 300) * 3 * z;
+    this.ctx.translate(0, bob);
+
+    // Dark high-contrast rounded background with gold border
+    this.ctx.fillStyle = 'rgba(15, 10, 30, 0.96)';
+    this.ctx.beginPath();
+    this.ctx.roundRect(px, py, pillW, pillH, 12 * z);
+    this.ctx.fill();
+
+    this.ctx.strokeStyle = '#fbbf24';
+    this.ctx.lineWidth = 2.5 * z;
+    this.ctx.stroke();
+
+    // Line 1: Training status with remaining seconds
+    this.ctx.fillStyle = '#fbbf24';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'top';
+    this.ctx.fillText(text1, x, py + 5 * z);
+
+    // Line 2: Speedup hint pill
+    this.ctx.fillStyle = '#10b981';
+    this.ctx.fillText(text2, x, py + 22 * z);
+
+    this.ctx.restore();
+  }
+
   private drawFloorGrid(): void {
     const spriteMgr = SpriteManager.getInstance();
     const state = this.stateStore.getState();
@@ -942,7 +985,7 @@ export class IsometricRenderer {
           // Dynamic floating countdown badge above employee head during training!
           if (emp.trainingEndsTimestamp && emp.trainingEndsTimestamp > Date.now()) {
             const remainingSec = Math.max(1, Math.ceil((emp.trainingEndsTimestamp - Date.now()) / 1000));
-            this.drawSpeechBubble(p.x, p.y - 75 * this.zoom, `🎓 EĞİTİMDE (${remainingSec}s) ⚡ 10💎`);
+            this.drawTrainingPill(p.x, p.y - 85 * this.zoom, remainingSec);
           }
         }
       });

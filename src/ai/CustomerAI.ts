@@ -212,6 +212,14 @@ export class CustomerManager {
     let freeChairIdx = -1;
     for (let i = 0; i < chairsCount; i++) {
       if (chairSlots[i] && chairSlots[i].reservedBy === null) {
+        const employees = this.stateStore.getState().employees;
+        const isStylistInTraining = employees.some(
+          (emp) => (emp.branchIndex || 0) === bIdx &&
+          emp.assignedChairIndex === i &&
+          emp.trainingEndsTimestamp && Date.now() < emp.trainingEndsTimestamp
+        );
+        if (isStylistInTraining) continue;
+
         freeChairIdx = i;
         break;
       }
@@ -271,6 +279,14 @@ export class CustomerManager {
     let freeChairIndex = -1;
     for (let i = 0; i < chairsCount; i++) {
       if (chairSlots[i] && chairSlots[i].reservedBy === null) {
+        const employees = this.stateStore.getState().employees;
+        const isStylistInTraining = employees.some(
+          (emp) => (emp.branchIndex || 0) === bIdx &&
+          emp.assignedChairIndex === i &&
+          emp.trainingEndsTimestamp && Date.now() < emp.trainingEndsTimestamp
+        );
+        if (isStylistInTraining) continue;
+
         freeChairIndex = i;
         break;
       }

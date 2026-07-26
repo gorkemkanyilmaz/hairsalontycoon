@@ -225,6 +225,41 @@ export class App {
     }
 
     // ─────────────────────────────────────────────────────────────
+    // 2.5: Eğitimdeki çalışan/istasyon tıklaması
+    // ─────────────────────────────────────────────────────────────
+    const employees = this.stateStore.getState().employees;
+
+    const stationTiles = [
+      { x: 7 + branchOffset, y: 3, chairIdx: 0 },
+      { x: 12 + branchOffset, y: 3, chairIdx: 1 },
+      { x: 17 + branchOffset, y: 3, chairIdx: 2 }
+    ];
+
+    for (const st of stationTiles) {
+      if (Math.hypot(gridPos.x - st.x, gridPos.y - st.y) <= 2.2 || Math.hypot(gridPos.x - st.x, gridPos.y - (st.y + 1)) <= 2.2) {
+        const empInTraining = employees.find(
+          (e) => (e.branchIndex || 0) === activeBranchIdx &&
+          e.assignedChairIndex === st.chairIdx &&
+          e.trainingEndsTimestamp && Date.now() < e.trainingEndsTimestamp
+        );
+        if (empInTraining) {
+          this.uiManager.openEmployeeTrainingModal(empInTraining);
+          return;
+        }
+      }
+    }
+
+    const empInTrainingClicked = employees.find(
+      (e) => (e.branchIndex || 0) === activeBranchIdx &&
+      Math.hypot(gridPos.x - e.posX, gridPos.y - e.posY) <= 2.2 &&
+      e.trainingEndsTimestamp && Date.now() < e.trainingEndsTimestamp
+    );
+    if (empInTrainingClicked) {
+      this.uiManager.openEmployeeTrainingModal(empInTrainingClicked);
+      return;
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // 3. EN SON: Kilitli mobilya tıklaması
     // ─────────────────────────────────────────────────────────────
     if (this.handleLockedFurnitureClick(gridPos)) return;

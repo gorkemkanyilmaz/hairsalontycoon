@@ -133,6 +133,71 @@ export class UIManager {
     this.modalOverlay.classList.add('hidden');
   }
 
+  public openEmployeeTrainingModal(emp: IEmployeeData): void {
+    const renderModalContent = () => {
+      const state = this.stateStore.getState();
+      const isTraining = emp.trainingEndsTimestamp && emp.trainingEndsTimestamp > Date.now();
+      if (!isTraining) {
+        this.closeModal();
+        return;
+      }
+
+      const remainingSec = Math.max(1, Math.ceil((emp.trainingEndsTimestamp! - Date.now()) / 1000));
+      const diamondsCost = 10;
+      const canAffordSpeedup = state.diamonds >= diamondsCost;
+
+      const html = `
+        <div style="padding: 18px; color: white; display: flex; flex-direction: column; gap: 16px; text-align: center; font-family: 'Outfit', sans-serif;">
+          <div style="font-size: 56px;">🎓</div>
+          <h3 style="margin: 0; color: #fbbf24; font-size: 18px; font-weight: 900;">${emp.name} EĞİTİMDE!</h3>
+          <p style="margin: 0; font-size: 13px; color: #cbd5e1; line-height: 1.4;">
+            Bu istasyonda çalışan personel <b>Seviye ${emp.level} -> Seviye ${emp.level + 1}</b> eğitimindedir.
+            Eğitim tamamlanana kadar bu koltukta hizmet verilemez.
+          </p>
+
+          <div style="background: rgba(245, 158, 11, 0.15); border: 2px solid #fbbf24; border-radius: 16px; padding: 14px;">
+            <div style="font-size: 12px; color: #fef08a; font-weight: 700; margin-bottom: 4px;">KALAN EĞİTİM SÜRESİ</div>
+            <div style="font-size: 32px; font-weight: 900; color: #ffffff; letter-spacing: 1px;">⏳ ${remainingSec} SANİYE</div>
+          </div>
+
+          <button class="btn-upgrade ${canAffordSpeedup ? '' : 'disabled'}" id="btn-speedup-training-modal" style="padding: 14px 20px; font-size: 14px;">
+            ${canAffordSpeedup ? `⚡ ${diamondsCost} 💎 ELMAS İLE ANINDA BİTİR` : `Yetersiz Elmas (⚡ ${diamondsCost} 💎)`}
+          </button>
+        </div>
+      `;
+
+      this.modalTitle.textContent = `🎓 ${emp.name} — Eğitim Detayı`;
+      this.modalBody.innerHTML = html;
+      this.modalOverlay.classList.remove('hidden');
+
+      document.getElementById('btn-speedup-training-modal')?.addEventListener('click', () => {
+        if (canAffordSpeedup) {
+          if (this.stateStore.deductDiamonds(diamondsCost)) {
+            emp.trainingEndsTimestamp = undefined;
+            emp.level += 1;
+            emp.speedMultiplier = 1.0 + (emp.level - 1) * 0.25;
+            this.stateStore.saveState();
+            EventBus.getInstance().emit(GameEventType.NOTIFICATION_TRIGGERED, `⚡ ${emp.name} Eğitimi Elmas ile Anında Tamamlandı! (Seviye ${emp.level})`);
+            EventBus.getInstance().emit(GameEventType.EMPLOYEE_LEVEL_UP, emp);
+            this.closeModal();
+          }
+        }
+      });
+    };
+
+    renderModalContent();
+
+    if (this.employeesTimer) clearInterval(this.employeesTimer);
+    this.employeesTimer = setInterval(() => {
+      if (!this.modalOverlay.classList.contains('hidden')) {
+        renderModalContent();
+      } else {
+        clearInterval(this.employeesTimer);
+        this.employeesTimer = null;
+      }
+    }, 1000);
+  }
+
   public openBuyFurnitureModal(kind: 'sofa' | 'station', slotIndex: number): void {
     const state = this.stateStore.getState();
     const branch = this.stateStore.getActiveBranch();
