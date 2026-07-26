@@ -821,169 +821,189 @@ export class IsometricRenderer {
     // Environment props (trees, lamps, vacant lots, bench, parked car) around the salon
     this.addEnvironmentEntities(entities);
 
-    // Plants Decor
-    entities.push({
-      gridX: 1, gridY: 1, sortKey: 1 + 1,
-      draw: (ctx) => {
-        const p = this.gridToScreen(1, 1);
-        const plantSprite = spriteMgr.getPottedPlantSprite('MONSTERA', this.zoom);
-        ctx.drawImage(plantSprite, p.x - plantSprite.width / 2, p.y - plantSprite.height + 15 * this.zoom);
-      }
-    });
+    const branches = this.stateStore.getState().branches || [this.stateStore.getActiveBranch()];
 
-    entities.push({
-      gridX: 14, gridY: 2, sortKey: 14 + 2,
-      draw: (ctx) => {
-        const p = this.gridToScreen(14, 2);
-        const plantSprite = spriteMgr.getPottedPlantSprite('GOLDEN_PALM', this.zoom);
-        ctx.drawImage(plantSprite, p.x - plantSprite.width / 2, p.y - plantSprite.height + 15 * this.zoom);
-      }
-    });
+    // Loop through ALL open branches to render furniture, doors, equipment & poles at offset!
+    branches.forEach((bData, bIdx) => {
+      const offsetX = bIdx * 20;
 
-    entities.push({
-      gridX: 7, gridY: 9, sortKey: 7 + 9,
-      draw: (ctx) => {
-        const p = this.gridToScreen(7, 9);
-        const plantSprite = spriteMgr.getPottedPlantSprite('ROSE_VASE', this.zoom);
-        ctx.drawImage(plantSprite, p.x - plantSprite.width / 2, p.y - plantSprite.height + 15 * this.zoom);
-      }
-    });
-
-    // Sofas â€“ drawn per active branch unlocked count; locked ones appear faded with a "+" badge
-    const activeBranch = this.stateStore.getActiveBranch();
-    const sofasCount = activeBranch.waitingSofasCount || 1;
-    const sofaTiles = [{ x: 2, y: 9 }, { x: 5, y: 9 }, { x: 8, y: 9 }];
-    sofaTiles.forEach((tile, idx) => {
-      const isActive = idx < sofasCount;
+      // Plants Decor for Branch bIdx
       entities.push({
-        gridX: tile.x, gridY: tile.y, sortKey: tile.x + tile.y,
+        gridX: 1 + offsetX, gridY: 1, sortKey: 1 + offsetX + 1,
         draw: (ctx) => {
-          const p = this.gridToScreen(tile.x, tile.y);
-          const sofaSprite = spriteMgr.getWaitingSofaSprite(this.zoom);
-          const drawY = p.y - sofaSprite.height + 15 * this.zoom;
-          if (isActive) {
-            ctx.drawImage(sofaSprite, p.x - sofaSprite.width / 2, drawY);
-          } else {
-            // Faded "locked" preview of the sofa
-            ctx.save();
-            ctx.globalAlpha = 0.35;
-            ctx.drawImage(sofaSprite, p.x - sofaSprite.width / 2, drawY);
-            ctx.restore();
-            // Green "+" purchase badge
-            this.drawLockedBadge(p.x, drawY + 6 * this.zoom, '🛋️ +₺150');
+          const p = this.gridToScreen(1 + offsetX, 1);
+          const plantSprite = spriteMgr.getPottedPlantSprite('MONSTERA', this.zoom);
+          ctx.drawImage(plantSprite, p.x - plantSprite.width / 2, p.y - plantSprite.height + 15 * this.zoom);
+        }
+      });
+
+      entities.push({
+        gridX: 14 + offsetX, gridY: 2, sortKey: 14 + offsetX + 2,
+        draw: (ctx) => {
+          const p = this.gridToScreen(14 + offsetX, 2);
+          const plantSprite = spriteMgr.getPottedPlantSprite('GOLDEN_PALM', this.zoom);
+          ctx.drawImage(plantSprite, p.x - plantSprite.width / 2, p.y - plantSprite.height + 15 * this.zoom);
+        }
+      });
+
+      entities.push({
+        gridX: 7 + offsetX, gridY: 9, sortKey: 7 + offsetX + 9,
+        draw: (ctx) => {
+          const p = this.gridToScreen(7 + offsetX, 9);
+          const plantSprite = spriteMgr.getPottedPlantSprite('ROSE_VASE', this.zoom);
+          ctx.drawImage(plantSprite, p.x - plantSprite.width / 2, p.y - plantSprite.height + 15 * this.zoom);
+        }
+      });
+
+      // Sofas for Branch bIdx
+      const sofasCount = bData.waitingSofasCount || 1;
+      const sofaTiles = [{ x: 2 + offsetX, y: 9 }, { x: 5 + offsetX, y: 9 }, { x: 8 + offsetX, y: 9 }];
+      sofaTiles.forEach((tile, idx) => {
+        const isActive = idx < sofasCount;
+        entities.push({
+          gridX: tile.x, gridY: tile.y, sortKey: tile.x + tile.y,
+          draw: (ctx) => {
+            const p = this.gridToScreen(tile.x, tile.y);
+            const sofaSprite = spriteMgr.getWaitingSofaSprite(this.zoom);
+            const drawY = p.y - sofaSprite.height + 15 * this.zoom;
+            if (isActive) {
+              ctx.drawImage(sofaSprite, p.x - sofaSprite.width / 2, drawY);
+            } else {
+              ctx.save();
+              ctx.globalAlpha = 0.35;
+              ctx.drawImage(sofaSprite, p.x - sofaSprite.width / 2, drawY);
+              ctx.restore();
+              this.drawLockedBadge(p.x, drawY + 6 * this.zoom, '🛋️ +₺150');
+            }
           }
-        }
+        });
       });
-    });
 
-    // Mirror Station #1
-    entities.push({
-      gridX: 5, gridY: 2, sortKey: 5 + 2 - 0.1,
-      draw: (ctx) => {
-        const p = this.gridToScreen(5, 2);
-        const stationSprite = spriteMgr.getBarberStationSprite(this.zoom);
-        ctx.drawImage(stationSprite, p.x - stationSprite.width / 2, p.y - stationSprite.height + 10 * this.zoom);
-      }
-    });
-
-    // Barber Chair #1
-    entities.push({
-      gridX: 5, gridY: 3, sortKey: 5 + 3,
-      draw: (ctx) => {
-        const p = this.gridToScreen(5, 3);
-        const chairSprite = spriteMgr.getBarberChairSprite(this.zoom);
-        ctx.drawImage(chairSprite, p.x - chairSprite.width / 2, p.y - chairSprite.height + 25 * this.zoom);
-      }
-    });
-
-    // 3D Warehouse Cargo Box Shelf at (12, 2)
-    entities.push({
-      gridX: 12, gridY: 2, sortKey: 12 + 2,
-      draw: (ctx) => {
-        const p = this.gridToScreen(12, 2);
-        const shelfSprite = spriteMgr.getWarehouseShelfSprite(this.zoom);
-        ctx.drawImage(shelfSprite, p.x - shelfSprite.width / 2, p.y - shelfSprite.height + 15 * this.zoom);
-      }
-    });
-
-    // 3D Hair Wash Basin Station at (2, 4) (if unlocked)
-    const washUnlocked = (activeBranch.upgrades?.hair_wash_station?.level || 0) >= 1;
-    if (washUnlocked) {
+      // Mirror Station #1 for Branch bIdx
       entities.push({
-        gridX: 2, gridY: 4, sortKey: 2 + 4,
+        gridX: 5 + offsetX, gridY: 2, sortKey: 5 + offsetX + 2 - 0.1,
         draw: (ctx) => {
-          const p = this.gridToScreen(2, 4);
-          const washSprite = spriteMgr.getHairWashStationSprite(this.zoom);
-          ctx.drawImage(washSprite, p.x - washSprite.width / 2, p.y - washSprite.height + 15 * this.zoom);
-        }
-      });
-    }
-
-    // 2nd Barber Station & Chair #2 at (8, 2)/(8, 3)
-    const stationsCount = activeBranch.barberStationsCount || 1;
-    const stationTile = { x: 8, y: 2 };
-    const chairTile = { x: 8, y: 3 };
-
-    entities.push({
-      gridX: stationTile.x, gridY: stationTile.y, sortKey: stationTile.x + stationTile.y - 0.1,
-      draw: (ctx) => {
-        const p = this.gridToScreen(stationTile.x, stationTile.y);
-        if (stationsCount >= 2) {
+          const p = this.gridToScreen(5 + offsetX, 2);
           const stationSprite = spriteMgr.getBarberStationSprite(this.zoom);
           ctx.drawImage(stationSprite, p.x - stationSprite.width / 2, p.y - stationSprite.height + 10 * this.zoom);
-        } else {
-          // Faded ghost outline box where the 2nd mirror station can be built
-          ctx.save();
-          ctx.globalAlpha = 0.3;
-          const stationSprite = spriteMgr.getBarberStationSprite(this.zoom);
-          ctx.drawImage(stationSprite, p.x - stationSprite.width / 2, p.y - stationSprite.height + 10 * this.zoom);
-          ctx.restore();
-          this.drawLockedBadge(p.x, p.y - stationSprite.height + 14 * this.zoom, '✂️ +₺500');
         }
-      }
-    });
+      });
 
-    entities.push({
-      gridX: chairTile.x, gridY: chairTile.y, sortKey: chairTile.x + chairTile.y,
-      draw: (ctx) => {
-        const p = this.gridToScreen(chairTile.x, chairTile.y);
-        if (stationsCount >= 2) {
-          const chairSprite = spriteMgr.getBarberChairSprite(this.zoom);
-          ctx.drawImage(chairSprite, p.x - chairSprite.width / 2, p.y - chairSprite.height + 25 * this.zoom);
-        } else {
-          ctx.save();
-          ctx.globalAlpha = 0.3;
-          const chairSprite = spriteMgr.getBarberChairSprite(this.zoom);
-          ctx.drawImage(chairSprite, p.x - chairSprite.width / 2, p.y - chairSprite.height + 25 * this.zoom);
-          ctx.restore();
-        }
-      }
-    });
-
-    // 3D Retail Display Shelf at (12, 9) (if unlocked)
-    const retailUnlocked = (activeBranch.upgrades?.retail_shelf?.level || 0) >= 1;
-    if (retailUnlocked) {
+      // Barber Chair #1 for Branch bIdx
       entities.push({
-        gridX: 12, gridY: 9, sortKey: 12 + 9,
+        gridX: 5 + offsetX, gridY: 3, sortKey: 5 + offsetX + 3,
         draw: (ctx) => {
-          const p = this.gridToScreen(12, 9);
-          const shelfSprite = spriteMgr.getRetailShelfSprite(this.zoom);
+          const p = this.gridToScreen(5 + offsetX, 3);
+          const chairSprite = spriteMgr.getBarberChairSprite(this.zoom);
+          ctx.drawImage(chairSprite, p.x - chairSprite.width / 2, p.y - chairSprite.height + 25 * this.zoom);
+        }
+      });
+
+      // 3D Warehouse Cargo Box Shelf at (12 + offsetX, 2)
+      entities.push({
+        gridX: 12 + offsetX, gridY: 2, sortKey: 12 + offsetX + 2,
+        draw: (ctx) => {
+          const p = this.gridToScreen(12 + offsetX, 2);
+          const shelfSprite = spriteMgr.getWarehouseShelfSprite(this.zoom);
           ctx.drawImage(shelfSprite, p.x - shelfSprite.width / 2, p.y - shelfSprite.height + 15 * this.zoom);
         }
       });
-    }
 
-    // 4. Hired Employee NPCs (Stylists & Receptionist for active branch)
-    const activeBranchIdx = this.stateStore.getState().activeBranchIndex || 0;
-    const employees = this.stateStore.getState().employees.filter(
-      (e) => e.branchIndex === undefined || e.branchIndex === activeBranchIdx
-    );
+      // 3D Hair Wash Basin Station at (2 + offsetX, 4) (if unlocked)
+      const washUnlocked = (bData.upgrades?.hair_wash_station?.level || 0) >= 1;
+      if (washUnlocked) {
+        entities.push({
+          gridX: 2 + offsetX, gridY: 4, sortKey: 2 + offsetX + 4,
+          draw: (ctx) => {
+            const p = this.gridToScreen(2 + offsetX, 4);
+            const washSprite = spriteMgr.getHairWashStationSprite(this.zoom);
+            ctx.drawImage(washSprite, p.x - washSprite.width / 2, p.y - washSprite.height + 15 * this.zoom);
+          }
+        });
+      }
 
-    employees.forEach((emp) => {
+      // 2nd Barber Station & Chair #2 at (8 + offsetX, 2)/(8 + offsetX, 3)
+      const stationsCount = bData.barberStationsCount || 1;
+      const stationTile = { x: 8 + offsetX, y: 2 };
+      const chairTile = { x: 8 + offsetX, y: 3 };
+
       entities.push({
-        gridX: emp.posX, gridY: emp.posY, sortKey: emp.posX + emp.posY + 0.04,
+        gridX: stationTile.x, gridY: stationTile.y, sortKey: stationTile.x + stationTile.y - 0.1,
         draw: (ctx) => {
-          const p = this.gridToScreen(emp.posX, emp.posY);
+          const p = this.gridToScreen(stationTile.x, stationTile.y);
+          if (stationsCount >= 2) {
+            const stationSprite = spriteMgr.getBarberStationSprite(this.zoom);
+            ctx.drawImage(stationSprite, p.x - stationSprite.width / 2, p.y - stationSprite.height + 10 * this.zoom);
+          } else {
+            ctx.save();
+            ctx.globalAlpha = 0.3;
+            const stationSprite = spriteMgr.getBarberStationSprite(this.zoom);
+            ctx.drawImage(stationSprite, p.x - stationSprite.width / 2, p.y - stationSprite.height + 10 * this.zoom);
+            ctx.restore();
+            this.drawLockedBadge(p.x, p.y - stationSprite.height + 14 * this.zoom, '✂️ +₺500');
+          }
+        }
+      });
+
+      entities.push({
+        gridX: chairTile.x, gridY: chairTile.y, sortKey: chairTile.x + chairTile.y,
+        draw: (ctx) => {
+          const p = this.gridToScreen(chairTile.x, chairTile.y);
+          if (stationsCount >= 2) {
+            const chairSprite = spriteMgr.getBarberChairSprite(this.zoom);
+            ctx.drawImage(chairSprite, p.x - chairSprite.width / 2, p.y - chairSprite.height + 25 * this.zoom);
+          } else {
+            ctx.save();
+            ctx.globalAlpha = 0.3;
+            const chairSprite = spriteMgr.getBarberChairSprite(this.zoom);
+            ctx.drawImage(chairSprite, p.x - chairSprite.width / 2, p.y - chairSprite.height + 25 * this.zoom);
+            ctx.restore();
+          }
+        }
+      });
+
+      // 3D Retail Display Shelf at (12 + offsetX, 9) (if unlocked)
+      const retailUnlocked = (bData.upgrades?.retail_shelf?.level || 0) >= 1;
+      if (retailUnlocked) {
+        entities.push({
+          gridX: 12 + offsetX, gridY: 9, sortKey: 12 + offsetX + 9,
+          draw: (ctx) => {
+            const p = this.gridToScreen(12 + offsetX, 9);
+            const shelfSprite = spriteMgr.getRetailShelfSprite(this.zoom);
+            ctx.drawImage(shelfSprite, p.x - shelfSprite.width / 2, p.y - shelfSprite.height + 15 * this.zoom);
+          }
+        });
+      }
+
+      // Reception Desk for Branch bIdx
+      entities.push({
+        gridX: 12 + offsetX, gridY: 6, sortKey: 12 + offsetX + 6,
+        draw: (ctx) => {
+          const p = this.gridToScreen(12 + offsetX, 6);
+          const deskSprite = spriteMgr.getReceptionDeskSprite(this.zoom);
+          ctx.drawImage(deskSprite, p.x - deskSprite.width / 2, p.y - deskSprite.height + 15 * this.zoom);
+        }
+      });
+
+      // Barber Pole for Branch bIdx
+      entities.push({
+        gridX: 15 + offsetX, gridY: 10, sortKey: 15 + offsetX + 10,
+        draw: (ctx) => {
+          const p = this.gridToScreen(15 + offsetX, 10);
+          this.drawBarberPole(p.x, p.y);
+        }
+      });
+    });
+
+    // 4. Hired Employee NPCs (Stylists & Receptionist)
+    const employees = this.stateStore.getState().employees;
+    employees.forEach((emp) => {
+      const branchOffset = (emp.branchIndex || 0) * 20;
+      const renderX = emp.posX < 18 ? emp.posX + branchOffset : emp.posX;
+      entities.push({
+        gridX: renderX, gridY: emp.posY, sortKey: renderX + emp.posY + 0.04,
+        draw: (ctx) => {
+          const p = this.gridToScreen(renderX, emp.posY);
           const empSprite = spriteMgr.getStylistEmployeeSprite(emp.avatarColor, emp.isWalking, emp.walkAnimPhase, this.zoom);
           ctx.drawImage(empSprite, p.x - empSprite.width / 2, p.y - empSprite.height + 12 * this.zoom);
 
@@ -992,25 +1012,6 @@ export class IsometricRenderer {
           this.drawNameBadgePill(`${roleIcon} ${emp.name}`, p.x, p.y + 22 * this.zoom);
         }
       });
-    });
-
-    // Reception Desk
-    entities.push({
-      gridX: 12, gridY: 6, sortKey: 12 + 6,
-      draw: (ctx) => {
-        const p = this.gridToScreen(12, 6);
-        const deskSprite = spriteMgr.getReceptionDeskSprite(this.zoom);
-        ctx.drawImage(deskSprite, p.x - deskSprite.width / 2, p.y - deskSprite.height + 15 * this.zoom);
-      }
-    });
-
-    // Barber Pole
-    entities.push({
-      gridX: 15, gridY: 10, sortKey: 15 + 10,
-      draw: (ctx) => {
-        const p = this.gridToScreen(15, 10);
-        this.drawBarberPole(p.x, p.y);
-      }
     });
 
     // Customers

@@ -46,16 +46,19 @@ export class EmployeeManager {
       }
     }
 
+    const branchOffset = (emp.branchIndex || 0) * 20;
+
     if (emp.role === 'JUNIOR_STYLIST' || emp.role === 'SENIOR_STYLIST') {
       // Automatic Hair Stylist AI Logic
-      const homeX = emp.assignedChairIndex === 1 ? 8 : 5;
+      const homeX = (emp.assignedChairIndex === 1 ? 8 : 5) + branchOffset;
       const homeY = 2;
       emp.targetX = homeX;
       emp.targetY = homeY;
 
       const chairIndex = emp.assignedChairIndex;
       const seatedCustomer = customers.find(
-        (c) => c.assignedChairIndex === chairIndex && (c.state === CustomerState.SEATED || c.state === CustomerState.RECEIVING_SERVICE)
+        (c) => (c.branchIndex || 0) === (emp.branchIndex || 0) &&
+        c.assignedChairIndex === chairIndex && (c.state === CustomerState.SEATED || c.state === CustomerState.RECEIVING_SERVICE)
       );
 
       if (seatedCustomer) {
@@ -77,12 +80,14 @@ export class EmployeeManager {
       }
     } else if (emp.role === 'RECEPTIONIST') {
       // Automatic Receptionist Cash Collection AI Logic (Takes 4.0s at Level 1, speeds up with Level!)
-      emp.targetX = 12;
+      emp.targetX = 12 + branchOffset;
       emp.targetY = 5;
 
-      const payingCustomer = customers.find((c) => c.state === CustomerState.PAYING);
+      const payingCustomer = customers.find(
+        (c) => (c.branchIndex || 0) === (emp.branchIndex || 0) && c.state === CustomerState.PAYING
+      );
       if (payingCustomer) {
-        const distToDesk = Math.hypot(payingCustomer.posX - 12, payingCustomer.posY - 6);
+        const distToDesk = Math.hypot(payingCustomer.posX - (12 + branchOffset), payingCustomer.posY - 6);
         if (distToDesk < 1.2) {
           // Initialize payment collection progress if not started
           if (payingCustomer.collectProgress === undefined) {
