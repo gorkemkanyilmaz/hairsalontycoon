@@ -184,6 +184,22 @@ export class StateStore {
     localStorage.setItem('HAIR_EMPIRE_SAVE', JSON.stringify(this.state));
   }
 
+  public resetAllProgress(): void {
+    try {
+      localStorage.removeItem('HAIR_EMPIRE_SAVE');
+      localStorage.removeItem('luxe_salon_tutorial_step');
+      localStorage.clear();
+    } catch (e) {
+      console.warn('Error clearing localStorage:', e);
+    }
+    this.state = this.getDefaultState();
+    this.saveState();
+    TutorialManager.getInstance().resetTutorial();
+    this.eventBus.emit(GameEventType.STATE_CHANGED, this.state);
+    this.eventBus.emit(GameEventType.CASH_CHANGED, this.state.cash);
+    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `🧹 TÜM KAYITLI OYUN GEÇMİŞİ SIFIRLANDI! SIFIRDAN BAŞLANIYOR...`);
+  }
+
   public getState(): Readonly<IGameState> {
     return this.state;
   }

@@ -49,6 +49,13 @@ export class UIManager {
       this.openFranchiseModal();
     });
 
+    document.getElementById('btn-reset-game')?.addEventListener('click', () => {
+      if (confirm('⚠️ Oyundaki tüm kayıtlı paranız, şubeleriniz ve ilerlemeniz SIFIRLANACAKTIR!\nEmin misiniz?')) {
+        this.stateStore.resetAllProgress();
+        window.location.reload();
+      }
+    });
+
     document.getElementById('rep-pill')?.addEventListener('click', () => {
       this.openGoogleReviewsModal();
     });

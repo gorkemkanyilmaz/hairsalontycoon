@@ -74,6 +74,13 @@ export class TutorialManager {
     localStorage.setItem('luxe_salon_tutorial_step', step.toString());
   }
 
+  public resetTutorial(): void {
+    localStorage.removeItem('luxe_salon_tutorial_step');
+    this.currentStep = TutorialStep.WELCOME_CLICK_CHAIR;
+    this.isDismissed = false;
+    this.saveTutorialStep(TutorialStep.WELCOME_CLICK_CHAIR);
+  }
+
   private createTutorialDOM(): void {
     let overlay = document.getElementById('tutorial-overlay');
     if (!overlay) {
