@@ -1153,6 +1153,14 @@ let bubbleText = '';
 
     entities.sort((a, b) => a.sortKey - b.sortKey);
     entities.forEach((ent) => ent.draw(this.ctx, this));
+
+    // Update Pulsing Tutorial Spotlight Ring position every frame!
+    try {
+      const tutorialMgr = (window as any).tutorialMgr || (import('../ui/TutorialManager').then(m => m.TutorialManager.getInstance()));
+      if (tutorialMgr && typeof tutorialMgr.positionSpotlightForStep === 'function') {
+        tutorialMgr.positionSpotlightForStep(this);
+      }
+    } catch (e) {}
   }
 
   private drawNameBadgePill(name: string, x: number, y: number, borderColor: string = '#f472b6'): void {

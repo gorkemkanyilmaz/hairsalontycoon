@@ -120,9 +120,10 @@ export class TutorialManager {
     });
   }
 
-  public updateTutorialUI(): void {
+  public updateTutorialUI(renderer?: any): void {
     if (this.currentStep === TutorialStep.COMPLETED) {
       this.overlayElement.classList.add('hidden');
+      if (this.spotlightRing) this.spotlightRing.style.display = 'none';
       return;
     }
 
@@ -130,38 +131,97 @@ export class TutorialManager {
 
     switch (this.currentStep) {
       case TutorialStep.WELCOME_CLICK_CHAIR:
-        this.bannerText.textContent = '✨ LUXE BEAUTY SALONA HOŞ GELDİN! Müşterin 1. Koltuğa oturdu. Koltuktaki müşteriye tıklayarak saç tasarımı minigamesini başlat!';
+        this.bannerText.textContent = '✨ ADIM 1: LUXE BEAUTY SALONA HOŞ GELDİN! Parlayan altın halkadaki 1. Koltuğa tıklayarak saç yapımını başlat!';
         break;
 
       case TutorialStep.MINIGAME_GUIDANCE:
-        this.bannerText.textContent = '✂️ Müşteri Saç İstekleri! Müşterinin istediği Saç Rengini, Kesimini ve Modelini eşleştirip "TAMAMLAMAK" butonuna tıkla!';
+        this.bannerText.textContent = '✂️ ADIM 2: Müşterinin istediği Saç Rengini ve Stilini eşleştirip "TAMAMLAMAK" butonuna tıkla!';
         break;
 
       case TutorialStep.COLLECT_CASH_DESK:
-        this.bannerText.textContent = '💵 Harika bir saç oldu! Müşteri ödeme yapmak için kasaya geçti. Kasa bankosuna tıklayarak ödemeyi al!';
+        this.bannerText.textContent = '💵 ADIM 3: Müşteri ödeme yapmak için kasaya geçti. Parlayan halkadaki Kasa Bankosuna tıklayarak parayı al!';
         break;
 
       case TutorialStep.OPEN_EQUIPMENT_MENU:
-        this.bannerText.textContent = '👩‍🎨 Harika Kazanç! Şimdi işleri otomatikleştirelim. Ekip menüsünü aç ve Cansu A.\'yı 1. Kuaför olarak işe al!';
+        this.bannerText.textContent = '👩‍🎨 ADIM 4: Harika Kazanç! Parlayan halkadaki "Ekip" butonuna tıklayarak personel menüsünü aç!';
         break;
 
       case TutorialStep.HIRE_CANSU:
-        this.bannerText.textContent = '👩‍🎨 "Cansu A. ₺600 İşe Al" butonuna tıklayarak ilk kuaförünü kadrona ekle!';
+        this.bannerText.textContent = '👩‍🎨 ADIM 5: "Cansu A. ₺600 İşe Al" butonuna tıklayarak ilk kuaförünü kadrona kat!';
         break;
 
       case TutorialStep.TRAIN_EMPLOYEE:
-        this.bannerText.textContent = '🎓 Cansu A. işe başladı! Seviyesini yükseltip hızlandırmak için "Seviye 2\'ye Eğit" butonuna tıkla!';
+        this.bannerText.textContent = '🎓 ADIM 6: Cansu A. işe başladı! Seviyesini yükseltmek için "Seviye 2\'ye Eğit" butonuna tıkla!';
         break;
 
       case TutorialStep.BUY_SECOND_STATION:
-        this.bannerText.textContent = '✂️ Salonunu Büyüt! Haritadaki kilitli 2. Kuaför Standına tıklayarak 2. İstasyonu satın al!';
+        this.bannerText.textContent = '✂️ ADIM 7: Salonunu Büyüt! Parlayan halkadaki 2. Kuaför Standına tıklayarak 2. İstasyonu satın al!';
         break;
+    }
+
+    this.positionSpotlightForStep(renderer);
+  }
+
+  public positionSpotlightForStep(renderer?: any): void {
+    if (this.currentStep === TutorialStep.COMPLETED || !this.spotlightRing) {
+      if (this.spotlightRing) this.spotlightRing.style.display = 'none';
+      return;
+    }
+
+    this.spotlightRing.style.display = 'block';
+
+    if (this.currentStep === TutorialStep.WELCOME_CLICK_CHAIR && renderer) {
+      const p = renderer.gridToScreen(5, 3);
+      this.spotlightRing.style.left = `${p.x - 45}px`;
+      this.spotlightRing.style.top = `${p.y - 65}px`;
+      this.spotlightRing.style.width = `90px`;
+      this.spotlightRing.style.height = `90px`;
+    } else if (this.currentStep === TutorialStep.COLLECT_CASH_DESK && renderer) {
+      const p = renderer.gridToScreen(12, 6);
+      this.spotlightRing.style.left = `${p.x - 45}px`;
+      this.spotlightRing.style.top = `${p.y - 65}px`;
+      this.spotlightRing.style.width = `90px`;
+      this.spotlightRing.style.height = `90px`;
+    } else if (this.currentStep === TutorialStep.OPEN_EQUIPMENT_MENU) {
+      const btn = document.getElementById('btn-employees');
+      if (btn) {
+        const rect = btn.getBoundingClientRect();
+        this.spotlightRing.style.left = `${rect.left - 6}px`;
+        this.spotlightRing.style.top = `${rect.top - 6}px`;
+        this.spotlightRing.style.width = `${rect.width + 12}px`;
+        this.spotlightRing.style.height = `${rect.height + 12}px`;
+      }
+    } else if (this.currentStep === TutorialStep.HIRE_CANSU) {
+      const btn = document.getElementById('btn-hire-stylist-1');
+      if (btn) {
+        const rect = btn.getBoundingClientRect();
+        this.spotlightRing.style.left = `${rect.left - 6}px`;
+        this.spotlightRing.style.top = `${rect.top - 6}px`;
+        this.spotlightRing.style.width = `${rect.width + 12}px`;
+        this.spotlightRing.style.height = `${rect.height + 12}px`;
+      }
+    } else if (this.currentStep === TutorialStep.TRAIN_EMPLOYEE) {
+      const btn = document.querySelector('[id^="btn-lvl-"]');
+      if (btn) {
+        const rect = btn.getBoundingClientRect();
+        this.spotlightRing.style.left = `${rect.left - 6}px`;
+        this.spotlightRing.style.top = `${rect.top - 6}px`;
+        this.spotlightRing.style.width = `${rect.width + 12}px`;
+        this.spotlightRing.style.height = `${rect.height + 12}px`;
+      }
+    } else if (this.currentStep === TutorialStep.BUY_SECOND_STATION && renderer) {
+      const p = renderer.gridToScreen(8, 2);
+      this.spotlightRing.style.left = `${p.x - 45}px`;
+      this.spotlightRing.style.top = `${p.y - 65}px`;
+      this.spotlightRing.style.width = `90px`;
+      this.spotlightRing.style.height = `90px`;
     }
   }
 
   public finishTutorial(): void {
     this.saveTutorialStep(TutorialStep.COMPLETED);
     this.overlayElement.classList.add('hidden');
+    if (this.spotlightRing) this.spotlightRing.style.display = 'none';
 
     this.stateStore.addCash(500);
     this.stateStore.addDiamonds(10);
