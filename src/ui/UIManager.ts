@@ -122,6 +122,14 @@ export class UIManager {
   }
 
   public closeModal(): void {
+    if (this.employeesTimer) {
+      clearInterval(this.employeesTimer);
+      this.employeesTimer = null;
+    }
+    if (this.franchiseTimer) {
+      clearInterval(this.franchiseTimer);
+      this.franchiseTimer = null;
+    }
     this.modalOverlay.classList.add('hidden');
   }
 
@@ -129,7 +137,7 @@ export class UIManager {
     const state = this.stateStore.getState();
     const branch = this.stateStore.getActiveBranch();
     const isSofa = kind === 'sofa';
-    const cost = isSofa ? 150 : 500;
+    const cost = isSofa ? 800 : 3500;
     const title = isSofa ? '🛋️ Bekleme Koltuğu Satın Al' : '✂️ 2. Kuaför İstasyonu Satın Al';
     const desc = isSofa
       ? `Salona ${slotIndex + 1}. Bekleme Koltuğunu ekleyin! Daha fazla müşteri sırada bekleyebilir.`
@@ -214,6 +222,13 @@ export class UIManager {
     this.modalTitle.textContent = `👩‍🎨 Çalışan Kadrosu — ${activeBranch.salonName}`;
     this.renderEmployeesList();
     this.modalOverlay.classList.remove('hidden');
+
+    if (this.employeesTimer) clearInterval(this.employeesTimer);
+    this.employeesTimer = setInterval(() => {
+      if (!this.modalOverlay.classList.contains('hidden')) {
+        this.renderEmployeesList();
+      }
+    }, 1000);
   }
 
   public openProductsModal(): void {
@@ -239,12 +254,12 @@ export class UIManager {
         <div style="display: flex; flex-direction: column; gap: 10px;">
           <h4 style="margin: 0; color: #fbbf24; font-size: 14px;">🚚 HIZLI KURYE SİPARİŞİ VER:</h4>
           
-          <button class="btn-upgrade" id="btn-restock-50" ${canAfford50 ? '' : 'disabled class="btn-upgrade disabled"'}>
-            📦 +50 Parça Stok Sipariş Et (₺150)
+          <button class="btn-upgrade ${canAfford50 ? '' : 'disabled'}" id="btn-restock-50">
+            📦 +50 Stok Sipariş Et (₺150)
           </button>
 
-          <button class="btn-upgrade" id="btn-restock-100" ${canAfford100 ? '' : 'disabled class="btn-upgrade disabled"'}>
-            📦 +100 Parça Tam Depo Doldur (₺250)
+          <button class="btn-upgrade ${canAfford100 ? '' : 'disabled'}" id="btn-restock-100">
+            📦 +100 Süper Stok Sipariş Et (₺250)
           </button>
         </div>
       </div>
@@ -266,8 +281,42 @@ export class UIManager {
   public openFranchiseModal(): void {
     const state = this.stateStore.getState();
     const isBranch2Open = state.branches.length >= 2;
-    const canAffordFranchise = state.cash >= 1000 && !isBranch2Open;
+    const branch2 = state.branches[1];
+    const isUnderConstruction = branch2 && branch2.constructionEndsTimestamp && branch2.constructionEndsTimestamp > Date.now();
+    const canAffordFranchise = state.cash >= 10000 && !isBranch2Open;
     const canAffordInsta = state.cash >= 200;
+
+    let branch2Html = '';
+    if (isBranch2Open) {
+      if (isUnderConstruction) {
+        const remainingSec = Math.max(1, Math.ceil((branch2.constructionEndsTimestamp! - Date.now()) / 1000));
+        const mins = Math.floor(remainingSec / 60);
+        const secs = remainingSec % 60;
+        const timeStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        const canAffordDiamondSpeedup = state.diamonds >= 50;
+
+        branch2Html = `
+          <div style="background: rgba(245, 158, 11, 0.15); border: 2px solid #f59e0b; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="color: #fbbf24; font-size: 13px; font-weight: 800;">🚧 NİŞANTAŞI İNŞAATI/KURULUMU SÜRÜYOR: ${timeStr}</div>
+            <button class="btn-upgrade ${canAffordDiamondSpeedup ? '' : 'disabled'}" id="btn-speedup-construction" style="background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+              ⚡ 50 💎 Elmas ile Anında Kur
+            </button>
+          </div>
+        `;
+      } else {
+        branch2Html = `
+          <button class="btn-upgrade" disabled style="background: rgba(6, 214, 160, 0.2); border-color: #06d6a0; color: #06d6a0;">
+            🟢 2. NİŞANTAŞI ŞUBESİ AÇIK & AKTİF (İŞLETİLİYOR)
+          </button>
+        `;
+      }
+    } else {
+      branch2Html = `
+        <button class="btn-upgrade ${canAffordFranchise ? '' : 'disabled'}" id="btn-open-franchise">
+          🏰 ₺10,000 İLE NİŞANTAŞI 2. LÜKS ŞUBEYİ AÇ (+1 SAAT İNŞAAT)
+        </button>
+      `;
+    }
 
     this.openModal('📢 Reklam Kampanyası & 🏰 Şube Açılışı', `
       <div style="padding: 16px; color: white; display: flex; flex-direction: column; gap: 16px;">
@@ -303,16 +352,7 @@ export class UIManager {
           <p style="font-size: 32px; margin-bottom: 2px;">🏰</p>
           <h3 style="margin: 0 0 4px 0; color: #fbbf24; font-size: 16px;">Nişantaşı Lüks Franchise Şubesi</h3>
           <p style="margin: 0 0 10px 0; font-size: 12px; color: #fbcfe8;">Mevcut Şube: <strong>${state.branches.length} Şube</strong> | Prestij: <strong style="color: #06d6a0;">+${Math.round((this.stateStore.getActiveBranch().prestigeMultiplier - 1) * 100)}% Kazanç</strong></p>
-          
-          ${
-            isBranch2Open
-              ? `<button class="btn-upgrade" disabled style="background: rgba(6, 214, 160, 0.2); border-color: #06d6a0; color: #06d6a0;">
-                  🟢 2. NİŞANTAŞI ŞUBESİ AÇIK & AKTİF (İŞLETİLİYOR)
-                 </button>`
-              : `<button class="btn-upgrade ${canAffordFranchise ? '' : 'disabled'}" id="btn-open-franchise">
-                  🏰 ₺1,000 İLE NİŞANTAŞI 2. LÜKS ŞUBEYİ AÇ (+%50 KAZANÇ)
-                 </button>`
-          }
+          ${branch2Html}
         </div>
       </div>
     `);
@@ -330,9 +370,24 @@ export class UIManager {
 
     document.getElementById('btn-open-franchise')?.addEventListener('click', () => {
       if (this.stateStore.openNewFranchiseBranch()) {
-        this.closeModal();
+        this.openFranchiseModal();
       }
     });
+
+    document.getElementById('btn-speedup-construction')?.addEventListener('click', () => {
+      if (this.stateStore.speedUpBranchConstructionWithDiamonds(1)) {
+        this.openFranchiseModal();
+      }
+    });
+
+    if (this.franchiseTimer) clearInterval(this.franchiseTimer);
+    if (isUnderConstruction) {
+      this.franchiseTimer = setInterval(() => {
+        if (!this.modalOverlay.classList.contains('hidden')) {
+          this.openFranchiseModal();
+        }
+      }, 1000);
+    }
   }
 
   private renderUpgradesList(): void {
@@ -470,66 +525,81 @@ export class UIManager {
     // --- HIRE CARDS ---
     const hasStylist1 = employees.some((e) => e.role === 'JUNIOR_STYLIST' && e.assignedChairIndex === 0);
     const hasStylist2 = employees.some((e) => e.role === 'JUNIOR_STYLIST' && e.assignedChairIndex === 1);
+    const hasStylist3 = employees.some((e) => e.role === 'JUNIOR_STYLIST' && e.assignedChairIndex === 2);
     const hasReceptionist = employees.some((e) => e.role === 'RECEPTIONIST');
-    const stationsCount = activeBranch.barberStationsCount || 1;
-    const stylist1 = employees.find((e) => e.assignedChairIndex === 0);
+    const stationsCount = Math.max(activeBranch.barberStationsCount || 1, activeBranch.chairsCount || 1);
 
-    // 1) Cansu A. - Junior Stylist for Chair #1 — ₺600, prerequisite: 2. istasyon (barberStationsCount >= 2)
+    // 1) Cansu A. - Junior Stylist for Chair #1 — ₺2,000 (Chair #1 active by default)
     if (!hasStylist1) {
-      const stationOk = stationsCount >= 2;
-      const canAfford = state.cash >= 600 && stationOk;
+      const canAfford = state.cash >= 2000;
       html += `
-        <div style="background: linear-gradient(135deg, rgba(6, 214, 160, 0.18), rgba(247, 37, 133, 0.15)); border: 2px solid ${stationOk ? '#06d6a0' : '#ef476f'}; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+        <div style="background: linear-gradient(135deg, rgba(6, 214, 160, 0.18), rgba(247, 37, 133, 0.15)); border: 2px solid #06d6a0; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
             <div>
               <h4 style="margin: 0 0 4px 0; color: #06d6a0;">👩‍🎨 Cansu A. (1. Kuaför — Koltuk #1)</h4>
-              <p style="margin: 0; font-size: 12px; color: #cbd5e1;">1. kuaför koltuğundaki (5, 3) müşterilerin saçını otomatik yapar.</p>
+              <p style="margin: 0; font-size: 12px; color: #cbd5e1;">1. kuaför koltuğundaki (7, 4) müşterilerin saçını otomatik yapar.</p>
             </div>
             <button class="btn-upgrade ${canAfford ? '' : 'disabled'}" id="btn-hire-stylist-1" style="white-space: nowrap;">
-              ₺600 İşe Al
+              ₺2,000 İşe Al
             </button>
           </div>
-          ${!stationOk ? `<div style="color: #ef476f; font-size: 11px; font-weight: 800;">⚠️ Ön Koşul: Önce 2. Kuaför İstasyonu (₺500) haritadan satın alınmalıdır!</div>` : ''}
         </div>
       `;
     }
 
-    // 2) Pelin K. - Receptionist (auto cashier) — ₺850, playerLevel >= 2
+    // 2) Pelin K. - Receptionist (auto cashier) — ₺2,500
     if (!hasReceptionist) {
-      const canAfford = state.cash >= 850 && state.playerLevel >= 2;
-      const lvlLocked = state.playerLevel < 2;
+      const canAfford = state.cash >= 2500;
       html += `
         <div style="background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(247, 37, 133, 0.15)); border: 2px solid #38bdf8; border-radius: 16px; padding: 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
           <div>
             <h4 style="margin: 0 0 4px 0; color: #38bdf8;">👩‍💼 Pelin K. (Otomatik Kasiyer)</h4>
             <p style="margin: 0; font-size: 12px; color: #cbd5e1;">Kasada bekleyen müşterilerin ödemesini otomatik tahsil eder. Sabır krizlerini önler!</p>
-            ${lvlLocked ? `<div style="color:#ef476f;font-size:11px;font-weight:800;margin-top:4px;">⚠️ Ön Koşul: Oyuncu Seviye 2 olmalı (Şu an: Lv.${state.playerLevel})</div>` : ''}
           </div>
           <button class="btn-upgrade ${canAfford ? '' : 'disabled'}" id="btn-hire-receptionist" style="white-space: nowrap;">
-            ₺850 İşe Al
+            ₺2,500 İşe Al
           </button>
         </div>
       `;
     }
 
-    // 3) Selin K. - 2nd Stylist for Chair #2 — ₺800, prerequisite: 2. istasyon + Cansu Lv.5
+    // 3) Selin K. - 2nd Stylist for Chair #2 — ₺4,500, prerequisite: 2. Kuaför İstasyonu (₺3,500)
     if (!hasStylist2) {
       const stationOk = stationsCount >= 2;
-      const cansuLevel5 = !!stylist1 && stylist1.level >= 5;
-      const canAfford = state.cash >= 800 && stationOk && cansuLevel5;
-      let prereqNote = '';
-      if (!stationOk) prereqNote = `⚠️ Ön Koşul: Önce 2. Kuaför İstasyonu (₺500) haritadan satın alınmalıdır!`;
-      else if (!cansuLevel5) prereqNote = `⚠️ Ön Koşul: 1. Kuaför Cansu A. Seviye 5 olmalı (Şu an: Lv.${stylist1?.level || 1})`;
+      const canAfford = state.cash >= 4500 && stationOk;
+      const prereqNote = !stationOk ? '⚠️ Ön Koşul: Önce 2. Kuaför İstasyonu (₺3,500) haritadan satın alınmalıdır!' : '';
 
       html += `
-        <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(247, 37, 133, 0.15)); border: 2px solid ${canAfford ? '#fbbf24' : '#ef476f'}; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+        <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(247, 37, 133, 0.15)); border: 2px solid ${stationOk ? '#fbbf24' : '#ef476f'}; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <div>
               <h4 style="margin: 0 0 4px 0; color: #fbbf24;">👩‍🎨 Selin K. (2. Kuaför — Koltuk #2)</h4>
-              <p style="margin: 0; font-size: 12px; color: #cbd5e1;">2. kuaför koltuğundaki (8, 3) müşterilerin saçını otomatik yapar.</p>
+              <p style="margin: 0; font-size: 12px; color: #cbd5e1;">2. kuaför koltuğundaki (12, 4) müşterilerin saçını otomatik yapar.</p>
             </div>
             <button class="btn-upgrade ${canAfford ? '' : 'disabled'}" id="btn-hire-stylist-2" style="white-space: nowrap;">
-              ₺800 İşe Al
+              ₺4,500 İşe Al
+            </button>
+          </div>
+          ${prereqNote ? `<div style="color: #ef476f; font-size: 11px; font-weight: 800;">${prereqNote}</div>` : ''}
+        </div>
+      `;
+    }
+
+    // 4) Seda T. - 3rd Stylist for Chair #3 — ₺7,500, prerequisite: Salon Alanı Büyütme (3. İstasyon)
+    if (!hasStylist3) {
+      const station3Ok = stationsCount >= 3;
+      const canAfford = state.cash >= 7500 && station3Ok;
+      const prereqNote = !station3Ok ? '⚠️ Ön Koşul: Önce Salon Alanı Büyütme (3. Stand ₺8,000) yükseltmesi alınmalıdır!' : '';
+
+      html += `
+        <div style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(247, 37, 133, 0.15)); border: 2px solid ${station3Ok ? '#c084fc' : '#ef476f'}; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h4 style="margin: 0 0 4px 0; color: #c084fc;">👩‍🎨 Seda T. (3. Kuaför — Koltuk #3)</h4>
+              <p style="margin: 0; font-size: 12px; color: #cbd5e1;">3. kuaför koltuğundaki (17, 4) VIP ve Gelin Saçı müşterilerini otomatik yapar.</p>
+            </div>
+            <button class="btn-upgrade ${canAfford ? '' : 'disabled'}" id="btn-hire-stylist-3" style="white-space: nowrap;">
+              ₺7,500 İşe Al
             </button>
           </div>
           ${prereqNote ? `<div style="color: #ef476f; font-size: 11px; font-weight: 800;">${prereqNote}</div>` : ''}
@@ -542,22 +612,29 @@ export class UIManager {
 
     // Bind hire buttons
     document.getElementById('btn-hire-stylist-1')?.addEventListener('click', () => {
-      if (this.stateStore.deductCash(600)) {
+      if (this.stateStore.deductCash(2000)) {
         this.stateStore.hireEmployee('Cansu A.', 'JUNIOR_STYLIST', 0);
         this.renderEmployeesList();
       }
     });
 
     document.getElementById('btn-hire-receptionist')?.addEventListener('click', () => {
-      if (this.stateStore.deductCash(850)) {
+      if (this.stateStore.deductCash(2500)) {
         this.stateStore.hireEmployee('Pelin K.', 'RECEPTIONIST', -1);
         this.renderEmployeesList();
       }
     });
 
     document.getElementById('btn-hire-stylist-2')?.addEventListener('click', () => {
-      if (this.stateStore.deductCash(800)) {
+      if (this.stateStore.deductCash(4500)) {
         this.stateStore.hireEmployee('Selin K.', 'JUNIOR_STYLIST', 1);
+        this.renderEmployeesList();
+      }
+    });
+
+    document.getElementById('btn-hire-stylist-3')?.addEventListener('click', () => {
+      if (this.stateStore.deductCash(7500)) {
+        this.stateStore.hireEmployee('Seda T.', 'JUNIOR_STYLIST', 2);
         this.renderEmployeesList();
       }
     });

@@ -10,8 +10,7 @@ import { EmployeeManager } from './ai/EmployeeAI';
 import { HaircutMinigame } from './ui/HaircutMinigame';
 import { SoundEngine } from './audio/SoundEngine';
 import { OfflineEarningsManager } from './core/OfflineEarnings';
-
-import { TutorialManager } from './ui/TutorialManager';
+import { TutorialManager, TutorialStep } from './ui/TutorialManager';
 
 export class App {
   private stateStore: StateStore;
@@ -123,14 +122,23 @@ export class App {
 
   private handleCanvasClick(gridPos: { x: number; y: number }, screenX?: number, screenY?: number): void {
     const customers = this.customerManager.getCustomers();
+    const tutStep = this.tutorialManager.currentStep;
+    const activeBranchIdx = this.stateStore.getState().activeBranchIndex || 0;
+    const branchOffset = activeBranchIdx * 30;
 
-    // TUTORIAL OVERRIDE: Step 0 (Click Chair #1 / Customer)
-    if (this.tutorialManager.currentStep === TutorialStep.WELCOME_CLICK_CHAIR) {
-      const seatedCust = customers.find((c) => c.state === CustomerState.SEATED || c.state === CustomerState.ENTERING || c.state === CustomerState.WAITING_IN_QUEUE);
+    // ─────────────────────────────────────────────────────────────
+    // STEP 0: Tutorial — ilk koltuk tıklaması (her yere tıkla geçsin)
+    // ─────────────────────────────────────────────────────────────
+    if (tutStep === TutorialStep.WELCOME_CLICK_CHAIR) {
+      const seatedCust = customers.find((c) =>
+        c.state === CustomerState.SEATED ||
+        c.state === CustomerState.ENTERING ||
+        c.state === CustomerState.WAITING_IN_QUEUE
+      );
       if (seatedCust) {
         seatedCust.state = CustomerState.SEATED;
-        seatedCust.posX = 5;
-        seatedCust.posY = 3;
+        seatedCust.posX = 7 + branchOffset;
+        seatedCust.posY = 4;
         this.soundEngine.playScissorsCutSound();
         this.haircutMinigame.startMinigame(seatedCust);
         this.tutorialManager.saveTutorialStep(TutorialStep.MINIGAME_GUIDANCE);
@@ -139,72 +147,102 @@ export class App {
       }
     }
 
-    // TUTORIAL OVERRIDE: Step 2 (Collect Cash at Reception)
-    if (this.tutorialManager.currentStep === TutorialStep.COLLECT_CASH_DESK) {
+    // ─────────────────────────────────────────────────────────────
+    // STEP 2: Tutorial — kasadan ödeme al
+    // ─────────────────────────────────────────────────────────────
+    if (tutStep === TutorialStep.COLLECT_CASH_DESK) {
       const payingCust = customers.find((c) => c.state === CustomerState.PAYING || c.earnedAmount > 0);
       if (payingCust) {
         this.customerManager.collectPayment(payingCust);
         this.soundEngine.playCashRegisterSound();
         this.showToast(`💵 +₺${payingCust.earnedAmount > 0 ? payingCust.earnedAmount : 150} Tahsil Edildi!`);
-        this.tutorialManager.saveTutorialStep(TutorialStep.OPEN_EQUIPMENT_MENU);
+        this.tutorialManager.saveTutorialStep(TutorialStep.EARN_FOR_SECOND_STATION);
         this.tutorialManager.updateTutorialUI();
         return;
       }
     }
 
-    // 0. Purchasable (locked) salon furniture — check before customer interactions
-    if (this.handleLockedFurnitureClick(gridPos)) return;
-
-    // 1. Direct Screen Point Hit Testing
-    if (screenX !== undefined && screenY !== undefined) {
-      const hitCustomer = this.renderer.getCustomerAtScreenPoint(screenX, screenY);
-      if (hitCustomer) {
-        if (hitCustomer.state === CustomerState.SEATED) {
-          this.soundEngine.playScissorsCutSound();
-          this.haircutMinigame.startMinigame(hitCustomer);
-          return;
-        } else if (hitCustomer.state === CustomerState.PAYING) {
-          this.customerManager.collectPayment(hitCustomer);
-          this.soundEngine.playCashRegisterSound();
-          this.showToast(`💵 +₺${hitCustomer.earnedAmount} Tahsil Edildi!`);
-          return;
-        }
-      }
-    }
-
-    // 2. Fallback Grid Area Hit Testing (Tight 1.5 radius for precision!)
+    // ─────────────────────────────────────────────────────────────
+    // 1. ÖNCE: Oturan müşteri — Screen bazlı & Grid bazlı hit test
+    // ─────────────────────────────────────────────────────────────
     const seatedCustomer = customers.find((c) => c.state === CustomerState.SEATED);
     if (seatedCustomer) {
-      const chairX = seatedCustomer.assignedChairIndex === 1 ? 8 : 5;
-      const chairY = 3;
-      const distToChair = Math.hypot(gridPos.x - chairX, gridPos.y - chairY);
-      const distToCust = Math.hypot(gridPos.x - seatedCustomer.posX, gridPos.y - seatedCustomer.posY);
-      if (distToChair <= 2.2 || distToCust <= 2.2) {
+      let hitSeated = false;
+
+      // Screen bazlı (daha hassas)
+      if (screenX !== undefined && screenY !== undefined) {
+        const hitCustomer = this.renderer.getCustomerAtScreenPoint(screenX, screenY);
+        if (hitCustomer && hitCustomer.state === CustomerState.SEATED) {
+          hitSeated = true;
+        }
+      }
+
+      // Grid bazlı fallback (geniş 3.5 karo yarıçapı)
+      if (!hitSeated) {
+        const chairX = (seatedCustomer.assignedChairIndex === 1 ? 12 : (seatedCustomer.assignedChairIndex === 2 ? 17 : 7)) + branchOffset;
+        const distToChair = Math.hypot(gridPos.x - chairX, gridPos.y - 4);
+        const distToCust = Math.hypot(gridPos.x - seatedCustomer.posX, gridPos.y - seatedCustomer.posY);
+        if (distToChair <= 3.5 || distToCust <= 3.5) {
+          hitSeated = true;
+        }
+      }
+
+      if (hitSeated) {
         this.soundEngine.playScissorsCutSound();
         this.haircutMinigame.startMinigame(seatedCustomer);
         return;
       }
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // 2. SONRA: Kasadaki müşteri — ödeme al
+    // ─────────────────────────────────────────────────────────────
     const payingCustomer = customers.find((c) => c.state === CustomerState.PAYING);
     if (payingCustomer) {
-      const distToDesk = Math.hypot(gridPos.x - 12, gridPos.y - 6);
-      if (distToDesk <= 2.5) {
+      let hitPaying = false;
+
+      if (screenX !== undefined && screenY !== undefined) {
+        const hitCustomer = this.renderer.getCustomerAtScreenPoint(screenX, screenY);
+        if (hitCustomer && hitCustomer.state === CustomerState.PAYING) {
+          hitPaying = true;
+        }
+      }
+
+      if (!hitPaying) {
+        const distToDesk = Math.hypot(gridPos.x - (18 + branchOffset), gridPos.y - 9);
+        const distToCust = Math.hypot(gridPos.x - payingCustomer.posX, gridPos.y - payingCustomer.posY);
+        if (distToDesk <= 3.0 || distToCust <= 3.0) {
+          hitPaying = true;
+        }
+      }
+
+      if (hitPaying) {
         this.customerManager.collectPayment(payingCustomer);
         this.soundEngine.playCashRegisterSound();
         this.showToast(`💵 +₺${payingCustomer.earnedAmount} Tahsil Edildi!`);
         return;
       }
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // 3. EN SON: Kilitli mobilya tıklaması
+    // ─────────────────────────────────────────────────────────────
+    if (this.handleLockedFurnitureClick(gridPos)) return;
   }
 
   private handleLockedFurnitureClick(gridPos: { x: number; y: number }): boolean {
+    const activeBranchIdx = this.stateStore.getState().activeBranchIndex || 0;
+    const branchOffset = activeBranchIdx * 30;
     const branch = this.stateStore.getActiveBranch();
     const sofasCount = branch.waitingSofasCount || 1;
     const stationsCount = branch.barberStationsCount || 1;
 
-    // Locked waiting sofa tiles: (2,9) idx0 always active; (5,9) idx1; (8,9) idx2
-    const sofaTiles = [{ x: 2, y: 9 }, { x: 5, y: 9 }, { x: 8, y: 9 }];
+    // Locked waiting sofa tiles: (3,14) idx0 always active; (8,14) idx1; (13,14) idx2
+    const sofaTiles = [
+      { x: 3 + branchOffset, y: 14 },
+      { x: 8 + branchOffset, y: 14 },
+      { x: 13 + branchOffset, y: 14 }
+    ];
     for (let i = 0; i < sofaTiles.length; i++) {
       if (i < sofasCount) continue; // already unlocked
       const t = sofaTiles[i];
@@ -214,9 +252,9 @@ export class App {
       }
     }
 
-    // Locked 2nd barber station tiles: (8,2) mirror + (8,3) chair
+    // Locked 2nd barber station tiles: (12,3) mirror + (12,4) chair
     if (stationsCount < 2) {
-      if (Math.hypot(gridPos.x - 8, gridPos.y - 2) <= 2.5 || Math.hypot(gridPos.x - 8, gridPos.y - 3) <= 2.5) {
+      if (Math.hypot(gridPos.x - (12 + branchOffset), gridPos.y - 3) <= 1.8 || Math.hypot(gridPos.x - (12 + branchOffset), gridPos.y - 4) <= 1.8) {
         this.uiManager.openBuyFurnitureModal('station', 1);
         return true;
       }

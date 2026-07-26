@@ -36,6 +36,7 @@ export interface ICustomerNPC {
   walkAnimPhase: number;
   spawnTimestamp: number;
   collectProgress?: number;
+  branchIndex?: number;
 }
 
 export interface ISeatSlot {
@@ -74,16 +75,16 @@ export class CustomerManager {
 
   private getBranchOffset(bIdx?: number): number {
     const idx = bIdx !== undefined ? bIdx : (this.stateStore.getState().activeBranchIndex || 0);
-    return idx * 20;
+    return idx * 30;
   }
 
   public getWaitingSlotsForBranch(bIdx: number): ISeatSlot[] {
     if (!this.waitingSlotsMap.has(bIdx)) {
-      const offset = bIdx * 20;
+      const offset = bIdx * 30;
       this.waitingSlotsMap.set(bIdx, [
-        { x: 2 + offset, y: 9, reservedBy: null },
-        { x: 5 + offset, y: 9, reservedBy: null },
-        { x: 8 + offset, y: 9, reservedBy: null }
+        { x: 3 + offset, y: 14, reservedBy: null },
+        { x: 8 + offset, y: 14, reservedBy: null },
+        { x: 13 + offset, y: 14, reservedBy: null }
       ]);
     }
     return this.waitingSlotsMap.get(bIdx)!;
@@ -91,32 +92,32 @@ export class CustomerManager {
 
   public getBarberChairSlotsForBranch(bIdx: number): ISeatSlot[] {
     if (!this.barberChairSlotsMap.has(bIdx)) {
-      const offset = bIdx * 20;
+      const offset = bIdx * 30;
       this.barberChairSlotsMap.set(bIdx, [
-        { x: 5 + offset, y: 3, reservedBy: null },
-        { x: 8 + offset, y: 3, reservedBy: null },
-        { x: 11 + offset, y: 3, reservedBy: null }
+        { x: 7 + offset, y: 4, reservedBy: null },
+        { x: 12 + offset, y: 4, reservedBy: null },
+        { x: 17 + offset, y: 4, reservedBy: null }
       ]);
     }
     return this.barberChairSlotsMap.get(bIdx)!;
   }
 
   public getDoorTile(bIdx?: number): { x: number; y: number } {
-    return { x: 15 + this.getBranchOffset(bIdx), y: 10 };
+    return { x: 22 + this.getBranchOffset(bIdx), y: 15 };
   }
 
   public getReceptionTile(bIdx?: number): { x: number; y: number } {
-    return { x: 12 + this.getBranchOffset(bIdx), y: 6 };
+    return { x: 18 + this.getBranchOffset(bIdx), y: 9 };
   }
 
   public getWaitingSlotTile(bIdx: number, slotIdx: number): { x: number; y: number } {
     const slots = this.getWaitingSlotsForBranch(bIdx);
-    return { x: slots[slotIdx]?.x || (2 + bIdx * 20), y: 9 };
+    return { x: slots[slotIdx]?.x || (3 + bIdx * 30), y: 14 };
   }
 
   public getChairSlotTile(bIdx: number, chairIdx: number): { x: number; y: number } {
     const slots = this.getBarberChairSlotsForBranch(bIdx);
-    return { x: slots[chairIdx]?.x || (5 + bIdx * 20), y: 3 };
+    return { x: slots[chairIdx]?.x || (7 + bIdx * 30), y: 4 };
   }
 
   private constructor() {
@@ -402,13 +403,14 @@ export class CustomerManager {
             customer.earnedAmount += 30;
 
             const chairsCount = this.stateStore.getActiveBranch().chairsCount || 1;
+            const chairSlotsBranch = this.getBarberChairSlotsForBranch(bIdx);
             let freeChairIdx = 0;
-            if (chairsCount > 1 && this.barberChairSlots[1].reservedBy === null) {
+            if (chairsCount > 1 && chairSlotsBranch[1].reservedBy === null) {
               freeChairIdx = 1;
             }
 
             const chairTile = this.getChairSlotTile(bIdx, freeChairIdx);
-            this.barberChairSlots[freeChairIdx].reservedBy = customer.id;
+            chairSlotsBranch[freeChairIdx].reservedBy = customer.id;
             customer.assignedChairIndex = freeChairIdx;
             customer.targetX = chairTile.x;
             customer.targetY = chairTile.y;
@@ -530,8 +532,8 @@ export class CustomerManager {
     const retailUnlocked = (activeBranch.upgrades?.retail_shelf?.level || 0) >= 1;
     if (retailUnlocked && Math.random() > 0.3 && qualityRating !== 'POOR') {
       customer.state = CustomerState.SHOPPING_RETAIL;
-      customer.targetX = 12 + bIdx * 20;
-      customer.targetY = 9;
+      customer.targetX = 18 + bIdx * 30;
+      customer.targetY = 14;
     } else {
       customer.state = CustomerState.PAYING;
       customer.targetX = receptionTile.x;

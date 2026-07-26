@@ -13,6 +13,7 @@ export class HaircutMinigame {
 
   constructor() {
     this.customerManager = CustomerManager.getInstance();
+    (window as any).haircutMinigameInstance = this;
     this.createDOM();
   }
 
@@ -87,7 +88,8 @@ export class HaircutMinigame {
         inset: 0;
         background: rgba(12, 10, 20, 0.85);
         backdrop-filter: blur(12px);
-        z-index: 200;
+        z-index: 999999 !important;
+        pointer-events: auto !important;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -95,6 +97,7 @@ export class HaircutMinigame {
         transition: all 0.3s ease;
       }
       .styling-modal-overlay.hidden {
+        display: none !important;
         opacity: 0;
         pointer-events: none !important;
         transform: scale(0.95);
@@ -281,6 +284,7 @@ export class HaircutMinigame {
       this.selectedFinish = selected;
     });
 
+    this.overlayElement.style.display = 'flex';
     this.overlayElement.classList.remove('hidden');
   }
 
@@ -344,6 +348,7 @@ export class HaircutMinigame {
   }
 
   private closeModal(): void {
+    this.overlayElement.style.display = 'none';
     this.overlayElement.classList.add('hidden');
     this.currentCustomer = null;
   }

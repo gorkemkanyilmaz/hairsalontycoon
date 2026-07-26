@@ -304,7 +304,8 @@ html, body {
   height: 100vh;
   background: rgba(5, 7, 12, 0.85);
   backdrop-filter: blur(12px);
-  z-index: 100;
+  z-index: 2000;
+  pointer-events: auto !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -647,13 +648,13 @@ html, body {
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 999;
+  z-index: 500;
   pointer-events: none !important;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  padding-bottom: 70px;
+  padding-bottom: 24px;
   transition: all 0.3s ease;
 }
 
@@ -661,17 +662,44 @@ html, body {
   display: none !important;
 }
 
+#tutorial-overlay.top-position {
+  justify-content: flex-start !important;
+  padding-top: 65px !important;
+  padding-bottom: 0 !important;
+}
+
 .tutorial-banner-box {
   background: linear-gradient(135deg, rgba(30, 20, 48, 0.95), rgba(15, 10, 25, 0.98));
   border: 2px solid #fbbf24;
   border-radius: 20px;
-  padding: 16px 20px;
+  padding: 14px 18px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 25px rgba(251, 191, 36, 0.4);
   max-width: 92%;
   width: 420px;
   text-align: center;
   color: white;
+  pointer-events: none !important;
   animation: floatBounce 2s infinite ease-in-out;
+}
+
+.btn-tutorial-dismiss {
+  background: linear-gradient(180deg, #fbbf24 0%, #d97706 100%);
+  border: 1.5px solid #ffffff;
+  color: #1e1b4b;
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 6px 20px;
+  border-radius: 99px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+  transition: all 0.15s ease;
+  pointer-events: auto !important;
+}
+
+.btn-tutorial-dismiss:hover {
+  transform: scale(1.05);
+  background: linear-gradient(180deg, #fef08a 0%, #fbbf24 100%);
 }
 
 .tutorial-spotlight-ring {

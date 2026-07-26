@@ -23,9 +23,9 @@ export class IsometricRenderer {
   private stateStore: StateStore;
   private eventBus: EventBus;
 
-  // 16x12 Commercial Salon Grid
-  private gridWidth: number = 16;
-  private gridHeight: number = 12;
+  // 24x18 Luxury Commercial Salon Grid (1.5x Spacious Grid Expansion)
+  private gridWidth: number = 24;
+  private gridHeight: number = 18;
   private tileWidth: number = 72;
   private tileHeight: number = 36;
 
@@ -51,7 +51,7 @@ export class IsometricRenderer {
   private hoveredGridPos: IIsoPoint | null = null;
 
   // Horizontal tile spacing between salon branches (so 2nd salon walls don't overlap)
-  private readonly BRANCH_SPACING = 20;
+  private readonly BRANCH_SPACING = 30;
 
   constructor(containerId: string) {
     // Listen for Branch Switched event to auto-center camera on active salon branch
@@ -190,7 +190,7 @@ export class IsometricRenderer {
     return { x: gridX, y: gridY };
   }
 
-  // Get customer under screen click point (generous 45px head & body radius)
+  // Get customer under screen click point (includes body AND "Saçımı yapın!" speech bubble)
   public getCustomerAtScreenPoint(screenX: number, screenY: number): ICustomerNPC | null {
     const rect = this.canvas.getBoundingClientRect();
     const clickX = screenX - rect.left;
@@ -201,14 +201,18 @@ export class IsometricRenderer {
     for (let i = customers.length - 1; i >= 0; i--) {
       const c = customers[i];
       const p = this.gridToScreen(c.posX, c.posY);
-      // Customer head/body center point is around p.y - 35 * zoom
+
+      // Customer body center point & speech bubble center point
       const bodyX = p.x;
       const bodyY = p.y - 35 * this.zoom;
+      const bubbleY = p.y - 100 * this.zoom;
 
-      const hitRadius = Math.max(40, 52 * this.zoom);
-      const dist = Math.hypot(clickX - bodyX, clickY - bodyY);
+      const distBody = Math.hypot(clickX - bodyX, clickY - bodyY);
+      const distBubble = Math.hypot(clickX - bodyX, clickY - bubbleY);
 
-      if (dist <= hitRadius) {
+      const hitRadius = Math.max(55, 75 * this.zoom);
+
+      if (distBody <= hitRadius || distBubble <= hitRadius) {
         return c;
       }
     }
@@ -415,15 +419,15 @@ export class IsometricRenderer {
     }
   }
 
-  // Draw the neighborhood around the salon: grass, sidewalks, asphalt street, crosswalk, vacant plots
+  // Draw pure lush green grass ground around the salon interior
   private drawEnvironmentGround(): void {
     const state = this.stateStore.getState();
     const branches = state.branches ? state.branches.length : 1;
 
-    const minGX = -6;
-    const maxGX = (branches - 1) * this.BRANCH_SPACING + this.gridWidth + 3;
-    const minGY = -5;
-    const maxGY = 16;
+    const minGX = -8;
+    const maxGX = (branches - 1) * this.BRANCH_SPACING + this.gridWidth + 6;
+    const minGY = -6;
+    const maxGY = 22;
 
     const isSalonInterior = (gx: number, gy: number): boolean => {
       for (let b = 0; b < branches; b++) {
@@ -434,126 +438,21 @@ export class IsometricRenderer {
       return false;
     };
 
-    // Find nearest branch offset to decide per-tile semantics (sidewalk/road in front of each salon)
-    const nearestBranchOffset = (gx: number): number => {
-      let best = 0;
-      let bestDist = Infinity;
-      for (let b = 0; b < branches; b++) {
-        const off = b * this.BRANCH_SPACING;
-        const d = Math.abs(gx - (off + this.gridWidth / 2));
-        if (d < bestDist) {
-          bestDist = d;
-          best = off;
-        }
-      }
-      return best;
-    };
-
     const grassA = '#1c3a26';
     const grassB = '#1a3524';
-    const sidewalk = '#7f8794';
-    const sidewalkEdge = '#9aa3ad';
-    const asphalt = '#23262d';
 
-    // 1. Grass field background everywhere outside the salon interior
+    // Pure green grass background everywhere outside the salon interior
     for (let gx = minGX; gx <= maxGX; gx++) {
       for (let gy = minGY; gy <= maxGY; gy++) {
         if (isSalonInterior(gx, gy)) continue;
-        const off = nearestBranchOffset(gx);
-        const lx = gx - off;
-        const isGrass = (gx + gy) % 2 === 0;
-        let fill = isGrass ? grassA : grassB;
-
-        // Sidewalk ring around each salon
-        if ((gy === -1 || gy === this.gridHeight) && lx >= -1 && lx <= this.gridWidth) {
-          fill = sidewalk;
-        }
-        if ((lx === -1 || lx === this.gridWidth) && gy >= -1 && gy <= this.gridHeight) {
-          fill = sidewalk;
-        }
-        // Main street right in front of the salon
-        if (gy === this.gridHeight + 1 && lx >= -1 && lx <= this.gridWidth) {
-          fill = asphalt;
-        }
-        // Vacant plot areas beside each salon (left & right) get a cleared dirt look
-        if ((lx >= -5 && lx <= -2) && gy >= 2 && gy <= 7) {
-          fill = (gx + gy) % 2 === 0 ? '#3b352c' : '#352f27';
-        }
-
+        const fill = (gx + gy) % 2 === 0 ? grassA : grassB;
         this.drawFlatTile(gx, gy, fill);
       }
     }
-
-    // 2. Sidewalk edge highlight lines per branch (a lighter outline along the street-facing curb)
-    for (let b = 0; b < branches; b++) {
-      const off = b * this.BRANCH_SPACING;
-      for (let lx = 0; lx < this.gridWidth; lx++) {
-        this.drawFlatTile(lx + off, this.gridHeight, sidewalk, sidewalkEdge);
-      }
-    }
-
-    // 3. Road lane markings (dashed yellow center line + white crosswalk near the door)
-    for (let b = 0; b < branches; b++) {
-      const off = b * this.BRANCH_SPACING;
-      const roadY = this.gridHeight + 1;
-      for (let lx = 0; lx < this.gridWidth; lx += 2) {
-        const p = this.gridToScreen(lx + off, roadY);
-        const hw = (this.tileWidth * this.zoom) / 2;
-        this.ctx.save();
-        this.ctx.strokeStyle = '#f5d90a';
-        this.ctx.lineWidth = 2.2 * this.zoom;
-        this.ctx.setLineDash([6 * this.zoom, 5 * this.zoom]);
-        this.ctx.beginPath();
-        this.ctx.moveTo(p.x - hw * 0.5, p.y);
-        this.ctx.lineTo(p.x + hw * 0.5, p.y);
-        this.ctx.stroke();
-        this.ctx.restore();
-      }
-
-      // Crosswalk (zebra) in front of the door (door ~ x 15, local)
-      const crossX = Math.round(this.gridWidth * 0.62) + off;
-      this.ctx.save();
-      for (let i = -1; i <= 1; i++) {
-        const p = this.gridToScreen(crossX + i, roadY);
-        const hh = (this.tileHeight * this.zoom) / 2;
-        this.ctx.fillStyle = 'rgba(255,255,255,0.85)';
-        this.ctx.beginPath();
-        this.ctx.moveTo(p.x, p.y - hh);
-        this.ctx.lineTo(p.x + 4 * this.zoom, p.y);
-        this.ctx.lineTo(p.x, p.y + hh);
-        this.ctx.lineTo(p.x - 4 * this.zoom, p.y);
-        this.ctx.closePath();
-        this.ctx.fill();
-      }
-      this.ctx.restore();
-    }
   }
 
-  // Build decorative props (trees, lamp posts, vacant lot fences & signs, bench, parked car) for all branches
   private addEnvironmentEntities(entities: IRenderableEntity[]): void {
-    const branches = this.stateStore.getState().branches ? this.stateStore.getState().branches!.length : 1;
-
-    for (let b = 0; b < branches; b++) {
-      const off = b * this.BRANCH_SPACING;
-
-      // Lamp posts along the front sidewalk
-      [2, 8, 13].forEach((lx) => {
-        const gx = lx + off;
-        const gy = this.gridHeight;
-        entities.push({
-          gridX: gx, gridY: gy, sortKey: gx + gy + 0.01,
-          draw: (ctx) => this.drawStreetLamp(this.gridToScreen(gx, gy))
-        });
-      });
-
-      // A small street bench on the sidewalk near the door
-      const benchGx = Math.round(this.gridWidth * 0.78) + off;
-      const benchGy = this.gridHeight;
-      entities.push({
-        gridX: benchGx, gridY: benchGy, sortKey: benchGx + benchGy + 0.02,
-        draw: (ctx) => this.drawStreetBench(this.gridToScreen(benchGx, benchGy))
-      });
-}
+    // Pure green grass environment — no street lamps or road clutter
   }
 
   private drawStreetLamp(p: IIsoPoint): void {
@@ -826,7 +725,7 @@ export class IsometricRenderer {
 
     // Loop through ALL open branches to render furniture, doors, equipment & poles at offset!
     branches.forEach((bData, bIdx) => {
-      const offsetX = bIdx * 20;
+      const offsetX = bIdx * 30;
 
       // Plants Decor for Branch bIdx
       entities.push({
@@ -839,18 +738,18 @@ export class IsometricRenderer {
       });
 
       entities.push({
-        gridX: 14 + offsetX, gridY: 2, sortKey: 14 + offsetX + 2,
+        gridX: 22 + offsetX, gridY: 2, sortKey: 22 + offsetX + 2,
         draw: (ctx) => {
-          const p = this.gridToScreen(14 + offsetX, 2);
+          const p = this.gridToScreen(22 + offsetX, 2);
           const plantSprite = spriteMgr.getPottedPlantSprite('GOLDEN_PALM', this.zoom);
           ctx.drawImage(plantSprite, p.x - plantSprite.width / 2, p.y - plantSprite.height + 15 * this.zoom);
         }
       });
 
       entities.push({
-        gridX: 7 + offsetX, gridY: 9, sortKey: 7 + offsetX + 9,
+        gridX: 10 + offsetX, gridY: 14, sortKey: 10 + offsetX + 14,
         draw: (ctx) => {
-          const p = this.gridToScreen(7 + offsetX, 9);
+          const p = this.gridToScreen(10 + offsetX, 14);
           const plantSprite = spriteMgr.getPottedPlantSprite('ROSE_VASE', this.zoom);
           ctx.drawImage(plantSprite, p.x - plantSprite.width / 2, p.y - plantSprite.height + 15 * this.zoom);
         }
@@ -858,7 +757,7 @@ export class IsometricRenderer {
 
       // Sofas for Branch bIdx
       const sofasCount = bData.waitingSofasCount || 1;
-      const sofaTiles = [{ x: 2 + offsetX, y: 9 }, { x: 5 + offsetX, y: 9 }, { x: 8 + offsetX, y: 9 }];
+      const sofaTiles = [{ x: 3 + offsetX, y: 14 }, { x: 8 + offsetX, y: 14 }, { x: 13 + offsetX, y: 14 }];
       sofaTiles.forEach((tile, idx) => {
         const isActive = idx < sofasCount;
         entities.push({
@@ -882,9 +781,9 @@ export class IsometricRenderer {
 
       // Mirror Station #1 for Branch bIdx
       entities.push({
-        gridX: 5 + offsetX, gridY: 2, sortKey: 5 + offsetX + 2 - 0.1,
+        gridX: 7 + offsetX, gridY: 3, sortKey: 7 + offsetX + 3 - 0.1,
         draw: (ctx) => {
-          const p = this.gridToScreen(5 + offsetX, 2);
+          const p = this.gridToScreen(7 + offsetX, 3);
           const stationSprite = spriteMgr.getBarberStationSprite(this.zoom);
           ctx.drawImage(stationSprite, p.x - stationSprite.width / 2, p.y - stationSprite.height + 10 * this.zoom);
         }
@@ -892,41 +791,41 @@ export class IsometricRenderer {
 
       // Barber Chair #1 for Branch bIdx
       entities.push({
-        gridX: 5 + offsetX, gridY: 3, sortKey: 5 + offsetX + 3,
+        gridX: 7 + offsetX, gridY: 4, sortKey: 7 + offsetX + 4,
         draw: (ctx) => {
-          const p = this.gridToScreen(5 + offsetX, 3);
+          const p = this.gridToScreen(7 + offsetX, 4);
           const chairSprite = spriteMgr.getBarberChairSprite(this.zoom);
           ctx.drawImage(chairSprite, p.x - chairSprite.width / 2, p.y - chairSprite.height + 25 * this.zoom);
         }
       });
 
-      // 3D Warehouse Cargo Box Shelf at (12 + offsetX, 2)
+      // 3D Warehouse Cargo Box Shelf at (18 + offsetX, 3)
       entities.push({
-        gridX: 12 + offsetX, gridY: 2, sortKey: 12 + offsetX + 2,
+        gridX: 18 + offsetX, gridY: 3, sortKey: 18 + offsetX + 3,
         draw: (ctx) => {
-          const p = this.gridToScreen(12 + offsetX, 2);
+          const p = this.gridToScreen(18 + offsetX, 3);
           const shelfSprite = spriteMgr.getWarehouseShelfSprite(this.zoom);
           ctx.drawImage(shelfSprite, p.x - shelfSprite.width / 2, p.y - shelfSprite.height + 15 * this.zoom);
         }
       });
 
-      // 3D Hair Wash Basin Station at (2 + offsetX, 4) (if unlocked)
+      // 3D Hair Wash Basin Station at (2 + offsetX, 7) (if unlocked)
       const washUnlocked = (bData.upgrades?.hair_wash_station?.level || 0) >= 1;
       if (washUnlocked) {
         entities.push({
-          gridX: 2 + offsetX, gridY: 4, sortKey: 2 + offsetX + 4,
+          gridX: 2 + offsetX, gridY: 7, sortKey: 2 + offsetX + 7,
           draw: (ctx) => {
-            const p = this.gridToScreen(2 + offsetX, 4);
+            const p = this.gridToScreen(2 + offsetX, 7);
             const washSprite = spriteMgr.getHairWashStationSprite(this.zoom);
             ctx.drawImage(washSprite, p.x - washSprite.width / 2, p.y - washSprite.height + 15 * this.zoom);
           }
         });
       }
 
-      // 2nd Barber Station & Chair #2 at (8 + offsetX, 2)/(8 + offsetX, 3)
+      // 2nd Barber Station & Chair #2 at (12 + offsetX, 3)/(12 + offsetX, 4)
       const stationsCount = bData.barberStationsCount || 1;
-      const stationTile = { x: 8 + offsetX, y: 2 };
-      const chairTile = { x: 8 + offsetX, y: 3 };
+      const stationTile = { x: 12 + offsetX, y: 3 };
+      const chairTile = { x: 12 + offsetX, y: 4 };
 
       entities.push({
         gridX: stationTile.x, gridY: stationTile.y, sortKey: stationTile.x + stationTile.y - 0.1,
@@ -941,7 +840,7 @@ export class IsometricRenderer {
             const stationSprite = spriteMgr.getBarberStationSprite(this.zoom);
             ctx.drawImage(stationSprite, p.x - stationSprite.width / 2, p.y - stationSprite.height + 10 * this.zoom);
             ctx.restore();
-            this.drawLockedBadge(p.x, p.y - stationSprite.height + 14 * this.zoom, '✂️ +₺500');
+            this.drawLockedBadge(p.x, p.y - stationSprite.height + 14 * this.zoom, '✂️ +₺1,500');
           }
         }
       });
@@ -963,9 +862,9 @@ export class IsometricRenderer {
         }
       });
 
-      // 3rd Barber Station & Chair #3 (👰 Gelin Saçı) at (11 + offsetX, 2)/(11 + offsetX, 3)
-      const station3Tile = { x: 11 + offsetX, y: 2 };
-      const chair3Tile = { x: 11 + offsetX, y: 3 };
+      // 3rd Barber Station & Chair #3 (👰 Gelin Saçı) at (17 + offsetX, 3)/(17 + offsetX, 4)
+      const station3Tile = { x: 17 + offsetX, y: 3 };
+      const chair3Tile = { x: 17 + offsetX, y: 4 };
 
       entities.push({
         gridX: station3Tile.x, gridY: station3Tile.y, sortKey: station3Tile.x + station3Tile.y - 0.1,
@@ -996,34 +895,34 @@ export class IsometricRenderer {
         }
       });
 
-      // 3D Retail Display Shelf at (12 + offsetX, 9) (if unlocked)
+      // 3D Retail Display Shelf at (18 + offsetX, 14) (if unlocked)
       const retailUnlocked = (bData.upgrades?.retail_shelf?.level || 0) >= 1;
       if (retailUnlocked) {
         entities.push({
-          gridX: 12 + offsetX, gridY: 9, sortKey: 12 + offsetX + 9,
+          gridX: 18 + offsetX, gridY: 14, sortKey: 18 + offsetX + 14,
           draw: (ctx) => {
-            const p = this.gridToScreen(12 + offsetX, 9);
+            const p = this.gridToScreen(18 + offsetX, 14);
             const shelfSprite = spriteMgr.getRetailShelfSprite(this.zoom);
             ctx.drawImage(shelfSprite, p.x - shelfSprite.width / 2, p.y - shelfSprite.height + 15 * this.zoom);
           }
         });
       }
 
-      // Reception Desk for Branch bIdx
+      // Reception Desk for Branch bIdx at (18 + offsetX, 9)
       entities.push({
-        gridX: 12 + offsetX, gridY: 6, sortKey: 12 + offsetX + 6,
+        gridX: 18 + offsetX, gridY: 9, sortKey: 18 + offsetX + 9,
         draw: (ctx) => {
-          const p = this.gridToScreen(12 + offsetX, 6);
+          const p = this.gridToScreen(18 + offsetX, 9);
           const deskSprite = spriteMgr.getReceptionDeskSprite(this.zoom);
           ctx.drawImage(deskSprite, p.x - deskSprite.width / 2, p.y - deskSprite.height + 15 * this.zoom);
         }
       });
 
-      // Barber Pole for Branch bIdx
+      // Barber Pole for Branch bIdx at (22 + offsetX, 15)
       entities.push({
-        gridX: 15 + offsetX, gridY: 10, sortKey: 15 + offsetX + 10,
+        gridX: 22 + offsetX, gridY: 15, sortKey: 22 + offsetX + 15,
         draw: (ctx) => {
-          const p = this.gridToScreen(15 + offsetX, 10);
+          const p = this.gridToScreen(22 + offsetX, 15);
           this.drawBarberPole(p.x, p.y);
         }
       });
@@ -1032,8 +931,7 @@ export class IsometricRenderer {
     // 4. Hired Employee NPCs (Stylists & Receptionist)
     const employees = this.stateStore.getState().employees;
     employees.forEach((emp) => {
-      const branchOffset = (emp.branchIndex || 0) * 20;
-      const renderX = emp.posX < 18 ? emp.posX + branchOffset : emp.posX;
+      const renderX = emp.posX;
       entities.push({
         gridX: renderX, gridY: emp.posY, sortKey: renderX + emp.posY + 0.04,
         draw: (ctx) => {
@@ -1044,6 +942,12 @@ export class IsometricRenderer {
           // Employee Badge Pill with role icon
           const roleIcon = emp.role === 'RECEPTIONIST' ? '👩‍💼' : '👩‍🎨';
           this.drawNameBadgePill(`${roleIcon} ${emp.name}`, p.x, p.y + 22 * this.zoom);
+
+          // Dynamic floating countdown badge above employee head during training!
+          if (emp.trainingEndsTimestamp && emp.trainingEndsTimestamp > Date.now()) {
+            const remainingSec = Math.max(1, Math.ceil((emp.trainingEndsTimestamp - Date.now()) / 1000));
+            this.drawSpeechBubble(p.x, p.y - 75 * this.zoom, `🎓 EĞİTİMDE (${remainingSec}s) ⚡ 10💎`);
+          }
         }
       });
     });

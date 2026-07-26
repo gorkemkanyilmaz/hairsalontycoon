@@ -46,12 +46,12 @@ export class EmployeeManager {
       }
     }
 
-    const branchOffset = (emp.branchIndex || 0) * 20;
+    const branchOffset = (emp.branchIndex || 0) * 30;
 
     if (emp.role === 'JUNIOR_STYLIST' || emp.role === 'SENIOR_STYLIST') {
       // Automatic Hair Stylist AI Logic
-      const homeX = (emp.assignedChairIndex === 1 ? 8 : 5) + branchOffset;
-      const homeY = 2;
+      const homeX = (emp.assignedChairIndex === 1 ? 12 : (emp.assignedChairIndex === 2 ? 17 : 7)) + branchOffset;
+      const homeY = 3;
       emp.targetX = homeX;
       emp.targetY = homeY;
 
@@ -79,15 +79,15 @@ export class EmployeeManager {
         }
       }
     } else if (emp.role === 'RECEPTIONIST') {
-      // Automatic Receptionist Cash Collection AI Logic (Takes 4.0s at Level 1, speeds up with Level!)
-      emp.targetX = 12 + branchOffset;
-      emp.targetY = 5;
+      // Automatic Receptionist Cash Collection AI Logic
+      emp.targetX = 18 + branchOffset;
+      emp.targetY = 8;
 
       const payingCustomer = customers.find(
         (c) => (c.branchIndex || 0) === (emp.branchIndex || 0) && c.state === CustomerState.PAYING
       );
       if (payingCustomer) {
-        const distToDesk = Math.hypot(payingCustomer.posX - (12 + branchOffset), payingCustomer.posY - 6);
+        const distToDesk = Math.hypot(payingCustomer.posX - (18 + branchOffset), payingCustomer.posY - 9);
         if (distToDesk < 1.2) {
           // Initialize payment collection progress if not started
           if (payingCustomer.collectProgress === undefined) {

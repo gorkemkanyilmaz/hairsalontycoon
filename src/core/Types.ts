@@ -104,6 +104,7 @@ export interface ISalonState {
   // Branch-level unlockable furniture (1 of each by default; rest bought from the canvas salon)
   waitingSofasCount: number;
   barberStationsCount: number;
+  constructionEndsTimestamp?: number;
 }
 
 export interface IGameState {

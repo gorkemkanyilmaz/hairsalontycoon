@@ -80,9 +80,9 @@ const createDefaultUpgrades = (): Record<string, IUpgradeNode> => ({
     icon: '📐',
     category: UpgradeCategory.EXPANSION,
     level: 0,
-    maxLevel: 2,
-    baseCost: 1200,
-    costMultiplier: 2.5,
+    maxLevel: 1,
+    baseCost: 8000,
+    costMultiplier: 1.0,
     requiredPlayerLevel: 1,
     prerequisiteUpgradeId: 'comfy_chair',
     prerequisiteDescription: 'Ergonomik Kuaför Koltuğu Seviye 3 olmalıdır!',
@@ -118,6 +118,21 @@ export class StateStore {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.branches && Array.isArray(parsed.branches) && parsed.branches.length > 0 && parsed.branches[0].upgrades) {
+          // Migration: fix any employee role/name corruption from reversed parameters
+          if (parsed.employees && Array.isArray(parsed.employees)) {
+            parsed.employees.forEach((emp: any) => {
+              if (emp.role === 'Cansu A.' || emp.name === 'JUNIOR_STYLIST') {
+                emp.name = 'Cansu A.';
+                emp.role = 'JUNIOR_STYLIST';
+              } else if (emp.role === 'Pelin K.' || emp.name === 'RECEPTIONIST') {
+                emp.name = 'Pelin K.';
+                emp.role = 'RECEPTIONIST';
+              } else if (emp.role === 'Selin K.') {
+                emp.name = 'Selin K.';
+                emp.role = 'JUNIOR_STYLIST';
+              }
+            });
+          }
           return parsed;
         }
       }
@@ -186,6 +201,9 @@ export class StateStore {
     if (branch.barberStationsCount === undefined) {
       branch.barberStationsCount = branch.chairsCount || 1;
     }
+    if (branch.upgrades && branch.upgrades.salon_expansion) {
+      branch.upgrades.salon_expansion.maxLevel = 1;
+    }
     return branch;
   }
 
@@ -198,11 +216,11 @@ export class StateStore {
     this.saveState();
   }
 
-  // Buy an extra waiting sofa for the active branch (max 3). ₺150 each after the first free one.
+  // Buy an extra waiting sofa for the active branch (max 3). ₺800 each.
   public buyWaitingSofa(): boolean {
     const branch = this.getActiveBranch();
     if ((branch.waitingSofasCount || 1) >= 3) return false;
-    const cost = 150;
+    const cost = 800;
     if (!this.deductCash(cost)) return false;
     branch.waitingSofasCount = (branch.waitingSofasCount || 1) + 1;
     branch.queueCapacity = branch.waitingSofasCount;
@@ -229,11 +247,11 @@ export class StateStore {
     return true;
   }
 
-  // Buy a 2nd barber station (chair + mirror) for the active branch. ₺500.
+  // Buy a 2nd barber station (chair + mirror) for the active branch. ₺3,500.
   public buyBarberStation(): boolean {
     const branch = this.getActiveBranch();
     if ((branch.barberStationsCount || 1) >= 2) return false;
-    const cost = 500;
+    const cost = 3500;
     if (!this.deductCash(cost)) return false;
     branch.barberStationsCount = 2;
     branch.chairsCount = 2;
@@ -310,10 +328,11 @@ export class StateStore {
 
     emp.level += 1;
     emp.speedMultiplier += 0.20;
-    emp.trainingEndsTimestamp = Date.now() + 30000; // 30 sec training
+    const durationSec = 20 + emp.level * 10; // Level 2: 30s, Level 3: 40s, Level 4: 50s...
+    emp.trainingEndsTimestamp = Date.now() + durationSec * 1000;
 
     this.eventBus.emit(GameEventType.EMPLOYEE_LEVEL_UP, emp);
-    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `🎓 ${emp.name} SEVİYE ${emp.level} EĞİTİMİNE BAŞLADI!`);
+    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `🎓 ${emp.name} SEVİYE ${emp.level} EĞİTİMİNE BAŞLADI! (${durationSec} sn)`);
     this.eventBus.emit(GameEventType.STATE_CHANGED, this.state);
     this.saveState();
     return true;
@@ -459,9 +478,10 @@ export class StateStore {
       return false;
     }
 
-    if (this.state.cash < 1000) return false;
+    const cost = 10000;
+    if (this.state.cash < cost) return false;
 
-    this.state.cash -= 1000;
+    this.state.cash -= cost;
     this.addDiamonds(25);
 
     const newBranchIndex = this.state.branches.length;
@@ -476,22 +496,37 @@ export class StateStore {
       theme: { floorStyle: 'GOLDEN_QUARTZ', wallStyle: 'LUXE_GOLD' },
       upgrades: createDefaultUpgrades(),
       waitingSofasCount: 1,
-      barberStationsCount: 1
+      barberStationsCount: 1,
+      constructionEndsTimestamp: Date.now() + 3600 * 1000 // 1 Hour (3600 seconds) construction time!
     };
 
     this.state.branches.push(newBranch);
     this.state.activeBranchIndex = newBranchIndex;
 
     this.eventBus.emit(GameEventType.FRANCHISE_OPENED, this.state.branches.length);
-    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `🏰 TEBRİKLER! NİŞANTAŞI 2. LÜKS ŞUBE AÇILDI & AKTİF EDİLDİ!`);
+    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `🏰 TEBRİKLER! NİŞANTAŞI 2. LÜKS ŞUBE KURULUMU BAŞLADI! (1 Saat İnşaat Süresi)`);
+    this.eventBus.emit(GameEventType.STATE_CHANGED, this.state);
+    this.saveState();
+    return true;
+  }
+
+  public speedUpBranchConstructionWithDiamonds(branchIndex: number): boolean {
+    const branch = this.state.branches[branchIndex];
+    if (!branch || !branch.constructionEndsTimestamp) return false;
+
+    const diamondCost = 50;
+    if (!this.deductDiamonds(diamondCost)) return false;
+
+    branch.constructionEndsTimestamp = undefined;
+    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `⚡ 50 💎 ELMAS İLE ANINDA TAMAMLANDI! ${branch.salonName} Hizmete Açıldı!`);
     this.eventBus.emit(GameEventType.STATE_CHANGED, this.state);
     this.saveState();
     return true;
   }
 
   public hireEmployee(name: string, role: 'JUNIOR_STYLIST' | 'SENIOR_STYLIST' | 'RECEPTIONIST' | 'WASH_SPECIALIST', assignedChairIndex: number): void {
-    const startX = role === 'RECEPTIONIST' ? 12 : (assignedChairIndex === 1 ? 8 : 5);
-    const startY = role === 'RECEPTIONIST' ? 5 : 2;
+    const startX = role === 'RECEPTIONIST' ? 18 : (assignedChairIndex === 1 ? 12 : (assignedChairIndex === 2 ? 17 : 7));
+    const startY = role === 'RECEPTIONIST' ? 8 : 3;
 
     const newEmp: IEmployeeData = {
       id: 'emp_' + Date.now(),
