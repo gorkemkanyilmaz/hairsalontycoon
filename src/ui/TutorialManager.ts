@@ -74,8 +74,14 @@ export class TutorialManager {
       spotlight = document.createElement('div');
       spotlight.id = 'tutorial-spotlight';
       spotlight.className = 'tutorial-spotlight-ring';
-      spotlight.style.cssText = 'position: fixed; display: none; z-index: 99999; pointer-events: none !important;';
+      spotlight.style.cssText = 'position: fixed; display: none; z-index: 99999; pointer-events: auto !important; cursor: pointer;';
       document.body.appendChild(spotlight);
+
+      spotlight.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        this.handleSpotlightClick();
+      });
     }
 
     this.overlayElement = overlay;
@@ -83,6 +89,78 @@ export class TutorialManager {
     this.spotlightRing = spotlight;
 
     this.updateTutorialUI();
+  }
+
+  public setDependencies(customerManager: any, haircutMinigame: any, uiManager: any): void {
+    (this as any).customerManager = customerManager;
+    (this as any).haircutMinigame = haircutMinigame;
+    (this as any).uiManager = uiManager;
+  }
+
+  public handleSpotlightClick(): void {
+    const custMgr = (this as any).customerManager || (window as any).customerMgr;
+    const minigame = (this as any).haircutMinigame || (window as any).haircutMinigame;
+    const uiMgr = (this as any).uiManager || (window as any).uiMgr;
+    const customers = custMgr ? custMgr.getCustomers() : [];
+
+    switch (this.currentStep) {
+      case TutorialStep.WELCOME_CLICK_CHAIR: {
+        const seatedCust = customers.find((c: any) => c.state === 'SEATED' || c.state === 'ENTERING');
+        if (seatedCust && minigame) {
+          seatedCust.state = 'SEATED';
+          seatedCust.posX = 5;
+          seatedCust.posY = 3;
+          minigame.startMinigame(seatedCust);
+          this.saveTutorialStep(TutorialStep.MINIGAME_GUIDANCE);
+          this.updateTutorialUI();
+        }
+        break;
+      }
+
+      case TutorialStep.COLLECT_CASH_DESK: {
+        const payingCust = customers.find((c: any) => c.state === 'PAYING' || c.earnedAmount > 0);
+        if (payingCust && custMgr) {
+          custMgr.collectPayment(payingCust);
+          this.saveTutorialStep(TutorialStep.OPEN_EQUIPMENT_MENU);
+          this.updateTutorialUI();
+        }
+        break;
+      }
+
+      case TutorialStep.OPEN_EQUIPMENT_MENU: {
+        if (uiMgr) {
+          uiMgr.openModal('employees');
+        } else {
+          document.getElementById('btn-employees')?.click();
+        }
+        this.saveTutorialStep(TutorialStep.HIRE_CANSU);
+        this.updateTutorialUI();
+        break;
+      }
+
+      case TutorialStep.HIRE_CANSU: {
+        const btnHire = document.getElementById('btn-hire-stylist-1');
+        if (btnHire) btnHire.click();
+        else this.stateStore.hireEmployee('JUNIOR_STYLIST', 'Cansu A.', 0);
+        this.saveTutorialStep(TutorialStep.TRAIN_EMPLOYEE);
+        this.updateTutorialUI();
+        break;
+      }
+
+      case TutorialStep.TRAIN_EMPLOYEE: {
+        const btnLvl = document.querySelector('[id^="btn-lvl-"]') as HTMLElement;
+        if (btnLvl) btnLvl.click();
+        this.saveTutorialStep(TutorialStep.BUY_SECOND_STATION);
+        this.updateTutorialUI();
+        break;
+      }
+
+      case TutorialStep.BUY_SECOND_STATION: {
+        this.stateStore.buyBarberStation();
+        this.finishTutorial();
+        break;
+      }
+    }
   }
 
   private setupListeners(): void {

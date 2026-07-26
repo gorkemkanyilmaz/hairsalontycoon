@@ -1,6 +1,7 @@
 import { StateStore } from '../core/StateStore';
 import { EventBus } from '../core/EventBus';
 import { CustomerClass, CustomerState, GameEventType } from '../core/Types';
+import { TutorialManager, TutorialStep } from '../ui/TutorialManager';
 
 export interface ICustomerWish {
   color: string;
@@ -300,6 +301,8 @@ export class CustomerManager {
     const randomCutWish = CUT_OPTIONS[Math.floor(Math.random() * CUT_OPTIONS.length)];
     const randomFinishWish = FINISH_OPTIONS[Math.floor(Math.random() * FINISH_OPTIONS.length)];
 
+    const isTutorialStep0 = TutorialManager.getInstance().currentStep === TutorialStep.WELCOME_CLICK_CHAIR && bIdx === 0;
+
     let targetX = 5 + bIdx * 20;
     let targetY = 3;
     let assignedWaitingIdx: number | undefined = undefined;
@@ -321,11 +324,11 @@ export class CustomerManager {
       id: 'cust_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
       name: randomName,
       customerClass: isVIP ? CustomerClass.VIP : CustomerClass.STANDARD,
-      state: CustomerState.ENTERING,
+      state: isTutorialStep0 ? CustomerState.SEATED : CustomerState.ENTERING,
       patience: isVIP ? 85 : 100,
       maxPatience: 100,
-      posX: doorTile.x,
-      posY: doorTile.y,
+      posX: isTutorialStep0 ? targetX : doorTile.x,
+      posY: isTutorialStep0 ? targetY : doorTile.y,
       targetX: targetX,
       targetY: targetY,
       speed: isVIP ? 4.2 : 3.6,
@@ -343,7 +346,7 @@ export class CustomerManager {
         cut: randomCutWish,
         finish: randomFinishWish
       },
-      isWalking: true,
+      isWalking: !isTutorialStep0,
       walkAnimPhase: 0,
       spawnTimestamp: Date.now(),
       branchIndex: bIdx
