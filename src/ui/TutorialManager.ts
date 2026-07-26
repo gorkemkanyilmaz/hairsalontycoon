@@ -352,14 +352,14 @@ export class TutorialManager {
 
   private checkCashPrerequisites(cash: number): void {
     if (this.currentStep === TutorialStep.COLLECT_CASH_DESK && cash > 0) {
-      if (cash >= 3500) {
+      if (cash >= 2000) {
         this.isDismissed = false;
         this.saveTutorialStep(TutorialStep.BUY_SECOND_STATION);
       } else {
         this.saveTutorialStep(TutorialStep.EARN_FOR_SECOND_STATION);
       }
       this.updateTutorialUI();
-    } else if (this.currentStep === TutorialStep.EARN_FOR_SECOND_STATION && cash >= 3500) {
+    } else if (this.currentStep === TutorialStep.EARN_FOR_SECOND_STATION && cash >= 2000) {
       this.isDismissed = false;
       this.saveTutorialStep(TutorialStep.BUY_SECOND_STATION);
       this.updateTutorialUI();
@@ -425,7 +425,7 @@ export class TutorialManager {
     switch (this.currentStep) {
       case TutorialStep.WELCOME_CLICK_CHAIR:
         if (!seatedCust) {
-          this.bannerText.textContent = '⏳ ADIM 1: İlk Müşteri Salona Giriyor... 1. Koltuğa Oturmasını Bekleyin...';
+          this.bannerText.textContent = '⏳ ADIM 1: İlk Müşteri Salona Giriyor... 1. Koltuğa Oturmesini Bekleyin...';
         } else {
           this.bannerText.textContent = '✨ ADIM 1: Müşterin 1. Koltuğa Oturdu! Parlayan altın halkadaki Müşteriye tıklayarak saç yapımını başlat!';
         }
@@ -440,11 +440,11 @@ export class TutorialManager {
         break;
 
       case TutorialStep.EARN_FOR_SECOND_STATION:
-        this.bannerText.textContent = `💵 ADIM 4: 2. Kuaför Standı İçin ₺3,500 Kazanın! (Mevcut: ₺${currentCash} / ₺3,500). Müşterilere hizmet etmeye devam edin!`;
+        this.bannerText.textContent = `💵 ADIM 4: 2. Kuaför Standı İçin ₺2,000 Kazanın! (Mevcut: ₺${currentCash} / ₺2,000). Müşterilere hizmet etmeye devam edin!`;
         break;
 
       case TutorialStep.BUY_SECOND_STATION:
-        this.bannerText.textContent = '✂️ ADIM 5: ₺3,500 Birikti! Haritadaki kilitli 2. Kuaför Standına tıklayarak 2. İstasyonu açın!';
+        this.bannerText.textContent = '✂️ ADIM 5: ₺2,000 Birikti! Haritadaki kilitli 2. Kuaför Standına tıklayarak 2. İstasyonu açın!';
         break;
 
       case TutorialStep.EARN_FOR_HIRE_CANSU:

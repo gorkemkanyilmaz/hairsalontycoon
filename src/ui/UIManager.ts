@@ -137,7 +137,7 @@ export class UIManager {
     const state = this.stateStore.getState();
     const branch = this.stateStore.getActiveBranch();
     const isSofa = kind === 'sofa';
-    const cost = isSofa ? 800 : 3500;
+    const cost = isSofa ? 800 : 2000;
     const title = isSofa ? '🛋️ Bekleme Koltuğu Satın Al' : '✂️ 2. Kuaför İstasyonu Satın Al';
     const desc = isSofa
       ? `Salona ${slotIndex + 1}. Bekleme Koltuğunu ekleyin! Daha fazla müşteri sırada bekleyebilir.`
@@ -397,6 +397,30 @@ export class UIManager {
 
     let html = `<div class="upgrades-grid">`;
 
+    // 2nd Barber Station Upgrade Card
+    const stationsCount = activeBranch.barberStationsCount || 1;
+    const isStation2Unlocked = stationsCount >= 2;
+    const canAffordStation2 = state.cash >= 2000;
+
+    html += `
+      <div class="upgrade-card ${isStation2Unlocked ? 'maxed' : ''}">
+        <div class="upgrade-icon">✂️</div>
+        <div class="upgrade-info">
+          <div class="upgrade-name">✂️ 2. Kuaför İstasyonu Kurulumu <span class="upgrade-level">${isStation2Unlocked ? 'AÇIK (2/2)' : 'KİLİTLİ (1/2)'}</span></div>
+          <div class="upgrade-desc">Salona 2. Kuaför Aynasını ve Koltuğunu ekler. Selin K.'yı işe almanıza olanak tanır.</div>
+        </div>
+        <div class="upgrade-action">
+          ${
+            isStation2Unlocked
+              ? `<button class="btn-upgrade max" disabled>AÇIK</button>`
+              : `<button class="btn-upgrade ${canAffordStation2 ? '' : 'disabled'}" id="btn-buy-station-2-upgrade">
+                  ₺2,000 Satın Al
+                 </button>`
+          }
+        </div>
+      </div>
+    `;
+
     upgrades.forEach((u: IUpgradeNode) => {
       const isMax = u.level >= u.maxLevel;
       const currentCost = Math.floor(u.baseCost * Math.pow(u.costMultiplier, u.level));
@@ -435,6 +459,12 @@ export class UIManager {
 
     html += `</div>`;
     this.modalBody.innerHTML = html;
+
+    document.getElementById('btn-buy-station-2-upgrade')?.addEventListener('click', () => {
+      if (this.stateStore.buyBarberStation()) {
+        this.renderUpgradesList();
+      }
+    });
 
     this.modalBody.querySelectorAll('.btn-upgrade:not(.max):not(.disabled)').forEach((btn) => {
       btn.addEventListener('click', (e) => {

@@ -795,11 +795,11 @@ export class IsometricRenderer {
         }
       });
 
-      // 3D Warehouse Cargo Box Shelf at (18 + offsetX, 3)
+      // 3D Warehouse Cargo Box Shelf at (21 + offsetX, 3) (Far top-right corner to prevent overlap with Station 3)
       entities.push({
-        gridX: 18 + offsetX, gridY: 3, sortKey: 18 + offsetX + 3,
+        gridX: 21 + offsetX, gridY: 3, sortKey: 21 + offsetX + 3,
         draw: (ctx) => {
-          const p = this.gridToScreen(18 + offsetX, 3);
+          const p = this.gridToScreen(21 + offsetX, 3);
           const shelfSprite = spriteMgr.getWarehouseShelfSprite(this.zoom);
           ctx.drawImage(shelfSprite, p.x - shelfSprite.width / 2, p.y - shelfSprite.height + 15 * this.zoom);
         }
@@ -836,7 +836,7 @@ export class IsometricRenderer {
             const stationSprite = spriteMgr.getBarberStationSprite(this.zoom);
             ctx.drawImage(stationSprite, p.x - stationSprite.width / 2, p.y - stationSprite.height + 10 * this.zoom);
             ctx.restore();
-            this.drawLockedBadge(p.x, p.y - stationSprite.height + 14 * this.zoom, '✂️ +₺1,500');
+            this.drawLockedBadge(p.x, p.y - stationSprite.height + 14 * this.zoom, '✂️ +₺2,000');
           }
         }
       });

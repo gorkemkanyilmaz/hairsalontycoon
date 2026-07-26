@@ -247,11 +247,11 @@ export class StateStore {
     return true;
   }
 
-  // Buy a 2nd barber station (chair + mirror) for the active branch. ₺3,500.
+  // Buy a 2nd barber station (chair + mirror) for the active branch. ₺2,000.
   public buyBarberStation(): boolean {
     const branch = this.getActiveBranch();
     if ((branch.barberStationsCount || 1) >= 2) return false;
-    const cost = 3500;
+    const cost = 2000;
     if (!this.deductCash(cost)) return false;
     branch.barberStationsCount = 2;
     branch.chairsCount = 2;
