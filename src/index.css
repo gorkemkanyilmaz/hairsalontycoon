@@ -606,12 +606,22 @@ html, body {
 
 @media (max-width: 460px) {
   .top-nav-btn .btn-text {
-    display: none;
+    display: inline-block !important;
+    font-size: 10px;
+    font-weight: 800;
   }
   .top-nav-btn {
-    padding: 7px 10px;
+    padding: 5px 6px;
+    gap: 3px;
+    font-size: 10px;
+    white-space: nowrap;
   }
-  .top-nav-btn .btn-icon { font-size: 18px; }
+  .top-nav-btn .btn-icon { font-size: 14px; }
+  .top-nav-group {
+    gap: 3px;
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+  }
 
   .modal-card {
     width: 96%;
@@ -771,4 +781,29 @@ html, body {
 @keyframes lowStockPulse {
   0% { transform: scale(1); box-shadow: 0 0 5px #ef476f; }
   100% { transform: scale(1.1); box-shadow: 0 0 20px #ef476f; background: rgba(239, 71, 111, 0.3); }
+}
+
+.btn-show-quest-toggle {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+  border: 2px solid #ffffff;
+  color: #1e1b4b;
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 8px 20px;
+  border-radius: 99px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5), 0 0 15px rgba(251, 191, 36, 0.4);
+  z-index: 501;
+  transition: all 0.2s ease;
+  pointer-events: auto !important;
+}
+
+.btn-show-quest-toggle:hover {
+  transform: translateX(-50%) scale(1.06);
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.7);
 }

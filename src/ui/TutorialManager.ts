@@ -95,11 +95,27 @@ export class TutorialManager {
       document.body.appendChild(overlay);
     }
 
+    let showToggleBtn = document.getElementById('btn-show-quest-toggle');
+    if (!showToggleBtn) {
+      showToggleBtn = document.createElement('button');
+      showToggleBtn.id = 'btn-show-quest-toggle';
+      showToggleBtn.className = 'btn-show-quest-toggle hidden';
+      showToggleBtn.innerHTML = '🎯 Görevi Göster';
+      document.body.appendChild(showToggleBtn);
+
+      showToggleBtn.addEventListener('click', () => {
+        this.isDismissed = false;
+        showToggleBtn?.classList.add('hidden');
+        this.updateTutorialUI();
+      });
+    }
+
     document.getElementById('btn-tutorial-dismiss')?.addEventListener('click', (e) => {
       e.stopPropagation();
       e.preventDefault();
       this.isDismissed = true;
       this.overlayElement.classList.add('hidden');
+      document.getElementById('btn-show-quest-toggle')?.classList.remove('hidden');
       if (this.spotlightRing) this.spotlightRing.style.display = 'none';
     });
 
@@ -404,13 +420,24 @@ export class TutorialManager {
   }
 
   public updateTutorialUI(renderer?: any): void {
-    if (this.currentStep === TutorialStep.COMPLETED || this.isDismissed) {
+    const showToggleBtn = document.getElementById('btn-show-quest-toggle');
+
+    if (this.currentStep === TutorialStep.COMPLETED) {
       this.overlayElement.classList.add('hidden');
+      showToggleBtn?.classList.add('hidden');
+      if (this.spotlightRing) this.spotlightRing.style.display = 'none';
+      return;
+    }
+
+    if (this.isDismissed) {
+      this.overlayElement.classList.add('hidden');
+      showToggleBtn?.classList.remove('hidden');
       if (this.spotlightRing) this.spotlightRing.style.display = 'none';
       return;
     }
 
     this.overlayElement.classList.remove('hidden');
+    showToggleBtn?.classList.add('hidden');
 
     const customers = CustomerManager.getInstance().getCustomers();
     const seatedCust = customers.find((c: any) => c.state === CustomerState.SEATED);
