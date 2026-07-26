@@ -769,7 +769,7 @@ export class IsometricRenderer {
               ctx.globalAlpha = 0.35;
               ctx.drawImage(sofaSprite, p.x - sofaSprite.width / 2, drawY);
               ctx.restore();
-              this.drawLockedBadge(p.x, drawY + 6 * this.zoom, '🛋️ +₺150');
+              this.drawLockedBadge(p.x, drawY + 6 * this.zoom, '🛋️ +₺800');
             }
           }
         });
@@ -875,7 +875,7 @@ export class IsometricRenderer {
             const stationSprite = spriteMgr.getBarberStationSprite(this.zoom);
             ctx.drawImage(stationSprite, p.x - stationSprite.width / 2, p.y - stationSprite.height + 10 * this.zoom);
             ctx.restore();
-            this.drawLockedBadge(p.x, p.y - stationSprite.height + 14 * this.zoom, '👰 Salon Büyüt');
+            this.drawLockedBadge(p.x, p.y - stationSprite.height + 14 * this.zoom, '👰 Salon Büyüt (₺8,000)');
           }
         }
       });

@@ -82,10 +82,14 @@ export class TutorialManager {
       overlay.className = this.currentStep === TutorialStep.COMPLETED ? 'hidden' : '';
       overlay.innerHTML = `
         <div class="tutorial-banner-box" id="tutorial-banner">
-          <div style="font-size: 24px; margin-bottom: 2px;">✨</div>
-          <h4 id="tutorial-title" style="margin: 0 0 4px 0; color: #fbbf24; font-size: 15px; font-weight: 800;">EĞİTİCİ REHBER</h4>
-          <p id="tutorial-text" style="margin: 0 0 10px 0; font-size: 13px; color: #cbd5e1; line-height: 1.4;"></p>
-          <button id="btn-tutorial-dismiss" class="btn-tutorial-dismiss">TAMAM 👍</button>
+          <div style="display: flex; align-items: center; gap: 12px; text-align: left; width: 100%;">
+            <div class="quest-checkbox-icon" id="quest-checkbox-icon">[ ]</div>
+            <div style="flex: 1;">
+              <h4 id="tutorial-title" style="margin: 0 0 2px 0; color: #fbbf24; font-size: 13px; font-weight: 900; letter-spacing: 0.5px;">🎯 GÜNCEL GÖREV</h4>
+              <p id="tutorial-text" style="margin: 0; font-size: 13px; color: #ffffff; line-height: 1.3; font-weight: 700;"></p>
+            </div>
+            <button id="btn-tutorial-dismiss" class="btn-tutorial-dismiss">KAPAT ✕</button>
+          </div>
         </div>
       `;
       document.body.appendChild(overlay);
@@ -422,110 +426,172 @@ export class TutorialManager {
       this.overlayElement.classList.remove('top-position');
     }
 
+    const checkboxEl = document.getElementById('quest-checkbox-icon');
+    const bannerBoxEl = document.getElementById('tutorial-banner');
+
+    let isReady = false;
+    let questText = '';
+
     switch (this.currentStep) {
       case TutorialStep.WELCOME_CLICK_CHAIR:
-        if (!seatedCust) {
-          this.bannerText.textContent = '⏳ ADIM 1: İlk Müşteri Salona Giriyor... 1. Koltuğa Oturmesini Bekleyin...';
-        } else {
-          this.bannerText.textContent = '✨ ADIM 1: Müşterin 1. Koltuğa Oturdu! Parlayan altın halkadaki Müşteriye tıklayarak saç yapımını başlat!';
-        }
+        questText = seatedCust
+          ? '✨ Müşterin 1. Koltuğa Oturdu! Parlayan Müşteriye tıklayarak saç yapımını başlat!'
+          : '⏳ ADIM 1: 1. Koltuğa Oturan Müşteriye Tıkla';
+        isReady = !!seatedCust;
         break;
 
       case TutorialStep.MINIGAME_GUIDANCE:
-        this.bannerText.textContent = '✂️ ADIM 2: Müşterinin istediği Saç Rengini ve Stilini eşleştirip "TAMAMLAMAK" butonuna tıkla!';
+        questText = '✂️ Saç Rengini ve Stilini Eşleştirip "SAÇI ŞEKİLLENDİR VE BİTİR" Butonuna Tıkla!';
+        isReady = true;
         break;
 
       case TutorialStep.COLLECT_CASH_DESK:
-        this.bannerText.textContent = '💵 ADIM 3: Müşteri ödeme yapmak için kasaya geçti. Parlayan halkadaki Kasa Bankosuna tıklayarak parayı al!';
+        questText = '💵 Kasadaki Müşteriye Tıklayarak Ödemeyi Tahsil Et!';
+        isReady = true;
         break;
 
       case TutorialStep.EARN_FOR_SECOND_STATION:
-        this.bannerText.textContent = `💵 ADIM 4: 2. Kuaför Standı İçin ₺2,000 Kazanın! (Mevcut: ₺${currentCash} / ₺2,000). Müşterilere hizmet etmeye devam edin!`;
+        const c3 = Math.min(currentCash, 2000);
+        questText = `🎯 2. Kuaför Standı İçin ₺2,000 Biriktir (₺${c3} / ₺2,000)`;
+        isReady = currentCash >= 2000;
         break;
 
       case TutorialStep.BUY_SECOND_STATION:
-        this.bannerText.textContent = '✂️ ADIM 5: ₺2,000 Birikti! Haritadaki kilitli 2. Kuaför Standına tıklayarak 2. İstasyonu açın!';
+        questText = '✂️ ₺2,000 Birikti! Haritadaki Kilitli 2. Standı Satın Al (₺2,000)';
+        isReady = true;
         break;
 
       case TutorialStep.EARN_FOR_HIRE_CANSU:
-        this.bannerText.textContent = `👩‍🎨 ADIM 6: Cansu A. (1. Kuaför) İçin ₺2,000 Kazanın! (Mevcut: ₺${currentCash} / ₺2,000). Müşterilere hizmet etmeye devam edin!`;
+        const c5 = Math.min(currentCash, 2000);
+        questText = `🎯 Cansu A. (1. Kuaför) İçin ₺2,000 Biriktir (₺${c5} / ₺2,000)`;
+        isReady = currentCash >= 2000;
         break;
 
       case TutorialStep.OPEN_EQUIPMENT_MENU_CANSU:
-        this.bannerText.textContent = '👩‍🎨 ADIM 7: ₺2,000 Birikti! Parlayan halkadaki "Ekip" butonuna tıklayarak personel menüsünü açın!';
+        questText = '👩‍🎨 ₺2,000 Birikti! "Ekip" Butonuna Tıklayarak Menüyü Aç!';
+        isReady = true;
         break;
 
       case TutorialStep.HIRE_CANSU:
-        this.bannerText.textContent = '👩‍🎨 ADIM 8: "Cansu A. ₺2,000 İşe Al" butonuna tıklayarak ilk kuaförünüzü kadronuza katın!';
+        questText = '👩‍🎨 "Cansu A. ₺2,000 İşe Al" Butonuna Tıklayarak İlk Kuaförünü Al!';
+        isReady = true;
         break;
 
       case TutorialStep.EARN_FOR_TRAIN_CANSU:
-        this.bannerText.textContent = `🎓 ADIM 9: Cansu A. Seviye 2 Eğitimi İçin ₺250 Kazanın! (Mevcut: ₺${currentCash} / ₺250). Müşterilere hizmet edin!`;
+        const c8 = Math.min(currentCash, 250);
+        questText = `🎯 Cansu A. Seviye 2 Eğitimi İçin ₺250 Biriktir (₺${c8} / ₺250)`;
+        isReady = currentCash >= 250;
         break;
 
       case TutorialStep.OPEN_EQUIPMENT_MENU_TRAIN:
-        this.bannerText.textContent = '🎓 ADIM 10: ₺250 Birikti! Parlayan halkadaki "Ekip" butonuna tıklayarak personel menüsünü açın!';
+        questText = '🎓 ₺250 Birikti! "Ekip" Butonuna Tıklayarak Menüyü Aç!';
+        isReady = true;
         break;
 
       case TutorialStep.TRAIN_CANSU:
-        this.bannerText.textContent = '🎓 ADIM 11: "Seviye 2\'ye Eğit (₺250)" butonuna tıklayarak Cansu\'nun hızını artırın!';
+        questText = '🎓 "Seviye 2\'ye Eğit (₺250)" Butonuna Tıklayarak Cansu\'yu Eğit!';
+        isReady = true;
         break;
 
       case TutorialStep.EARN_FOR_RECEPTIONIST:
-        this.bannerText.textContent = `👩‍💼 ADIM 12: Pelin K. (Otomatik Kasiyer) İçin ₺2,500 Kazanın! (Mevcut: ₺${currentCash} / ₺2,500). Müşterilere hizmet edin!`;
+        const c11 = Math.min(currentCash, 2500);
+        questText = `🎯 Pelin K. (Kasiyer) İçin ₺2,500 Biriktir (₺${c11} / ₺2,500)`;
+        isReady = currentCash >= 2500;
         break;
 
       case TutorialStep.OPEN_EQUIPMENT_MENU_PELIN:
-        this.bannerText.textContent = '👩‍💼 ADIM 13: ₺2,500 Birikti! Parlayan halkadaki "Ekip" butonuna tıklayarak personel menüsünü açın!';
+        questText = '👩‍💼 ₺2,500 Birikti! "Ekip" Butonuna Tıklayarak Menüyü Aç!';
+        isReady = true;
         break;
 
       case TutorialStep.HIRE_RECEPTIONIST:
-        this.bannerText.textContent = '👩‍💼 ADIM 14: "Pelin K. ₺2,500 İşe Al" butonuna tıklayarak otomatik kasiyeri işe alın!';
+        questText = '👩‍💼 "Pelin K. ₺2,500 İşe Al" Butonuna Tıklayarak Otomatik Kasiyeri Al!';
+        isReady = true;
         break;
 
       case TutorialStep.EARN_FOR_SHAMPOO_DEPOT:
-        this.bannerText.textContent = `📦 ADIM 15: Depo Şampuan Stok Siparişi İçin ₺150 Kazanın! (Mevcut: ₺${currentCash} / ₺150).`;
+        const c14 = Math.min(currentCash, 150);
+        questText = `📦 Depo Şampuan Stok Siparişi İçin ₺150 Biriktir (₺${c14} / ₺150)`;
+        isReady = currentCash >= 150;
         break;
 
       case TutorialStep.OPEN_PRODUCTS_MENU:
-        this.bannerText.textContent = '📦 ADIM 16: ₺150 Birikti! Parlayan halkadaki "Stok" butonuna tıklayarak depo menüsünü açın!';
+        questText = '📦 ₺150 Birikti! "Stok" Butonuna Tıklayarak Depo Menüyü Aç!';
+        isReady = true;
         break;
 
       case TutorialStep.BUY_SHAMPOO_STOCK:
-        this.bannerText.textContent = '📦 ADIM 17: "+50 Stok Sipariş Et (₺150)" butonuna tıklayarak salon deposunu şampuanla doldurun!';
+        questText = '📦 "+50 Stok Sipariş Et (₺150)" Butonuna Tıklayarak Depoyu Doldur!';
+        isReady = true;
         break;
 
       case TutorialStep.EARN_FOR_SOFA:
-        this.bannerText.textContent = `🛋️ ADIM 18: 2. Bekleme Koltuğu İçin ₺800 Kazanın! (Mevcut: ₺${currentCash} / ₺800).`;
+        const c17 = Math.min(currentCash, 800);
+        questText = `🛋️ 2. Bekleme Koltuğu İçin ₺800 Biriktir (₺${c17} / ₺800)`;
+        isReady = currentCash >= 800;
         break;
 
       case TutorialStep.BUY_SOFA:
-        this.bannerText.textContent = '🛋️ ADIM 19: ₺800 Birikti! Haritadaki kilitli Bekleme Koltuğuna tıklayarak 2. koltuğu satın alın!';
+        questText = '🛋️ ₺800 Birikti! Haritadaki Kilitli Bekleme Koltuğunu Satın Al (₺800)';
+        isReady = true;
         break;
 
       case TutorialStep.EARN_FOR_EXPANSION:
-        this.bannerText.textContent = `📐 ADIM 20: Salon Alanı Büyütme İçin ₺8,000 Kazanın! (Mevcut: ₺${currentCash} / ₺8,000).`;
+        const c19 = Math.min(currentCash, 8000);
+        questText = `📐 Salon Alanı Büyütme İçin ₺8,000 Biriktir (₺${c19} / ₺8,000)`;
+        isReady = currentCash >= 8000;
         break;
 
       case TutorialStep.OPEN_UPGRADES_EXPANSION:
-        this.bannerText.textContent = '📐 ADIM 21: ₺8,000 Birikti! Parlayan halkadaki "Geliştir" butonuna tıklayarak yükseltme menüsünü açın!';
+        questText = '📐 ₺8,000 Birikti! "Geliştir" Butonuna Tıklayarak Menüyü Aç!';
+        isReady = true;
         break;
 
       case TutorialStep.BUY_EXPANSION:
-        this.bannerText.textContent = '📐 ADIM 22: "Salon Alanı Büyütme (₺8,000)" satın alarak 3. Kuaför Standını ve Gelin Saçını açın!';
+        questText = '📐 "Salon Alanı Büyütme (₺8,000)" Alarak 3. Kuaför Standını Aç!';
+        isReady = true;
         break;
 
       case TutorialStep.EARN_FOR_NISANTASI_BRANCH:
-        this.bannerText.textContent = `🏰 ADIM 23: 2. Nişantaşı Şubesi İçin ₺10,000 Kazanın! (Mevcut: ₺${currentCash} / ₺10,000).`;
+        const c22 = Math.min(currentCash, 10000);
+        questText = `🏰 2. Nişantaşı Şubesi İçin ₺10,000 Biriktir (₺${c22} / ₺10,000)`;
+        isReady = currentCash >= 10000;
         break;
 
       case TutorialStep.OPEN_FRANCHISE_MENU:
-        this.bannerText.textContent = '🏰 ADIM 24: ₺10,000 Birikti! Parlayan halkadaki "Şube/Reklam" butonuna tıklayarak şube menüsünü açın!';
+        questText = '🏰 ₺10,000 Birikti! "Şubeler" Butonuna Tıklayarak Menüyü Aç!';
+        isReady = true;
         break;
 
       case TutorialStep.OPEN_NISANTASI_BRANCH:
-        this.bannerText.textContent = '🏰 ADIM 25: "Nişantaşı 2. Lüks Şubeyi Aç" butonuna tıklayarak 2. Şubenizi kurun ve imparatorluğu büyütün!';
+        questText = '🏰 Nişantaşı 2. Lüks Şubeyi Kur (₺10,000)';
+        isReady = true;
         break;
+
+      default:
+        questText = '🎉 Tebrikler! Tüm Salon Görevlerini Tamamladınız!';
+        isReady = true;
+        break;
+    }
+
+    this.bannerText.textContent = questText;
+
+    if (checkboxEl) {
+      if (isReady) {
+        checkboxEl.textContent = '[✓]';
+        checkboxEl.classList.add('completed');
+      } else {
+        checkboxEl.textContent = '[ ]';
+        checkboxEl.classList.remove('completed');
+      }
+    }
+
+    if (bannerBoxEl) {
+      if (isReady) {
+        bannerBoxEl.classList.add('pulsing-ready');
+      } else {
+        bannerBoxEl.classList.remove('pulsing-ready');
+      }
     }
 
     this.positionSpotlightForStep(renderer);
