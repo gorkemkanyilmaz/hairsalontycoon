@@ -472,27 +472,71 @@ export class StateStore {
     return true;
   }
 
-  public openNewFranchiseBranch(): boolean {
-    if (this.state.branches.length >= 2) {
-      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `⚠️ 2. NİŞANTAŞI LÜKS ŞUBESİ ZATEN AÇIK!`);
-      return false;
+  public activeSocialAdPackage?: { type: 'BRONZE' | 'SILVER' | 'GOLD'; endsTimestamp: number; spawnMultiplier: number; vipChance: number };
+
+  public startSocialMediaAdPackage(packageType: 'BRONZE' | 'SILVER' | 'GOLD'): boolean {
+    let cost = 500;
+    let durationSec = 60;
+    let spawnMult = 1.5;
+    let vipRate = 0.25;
+
+    if (packageType === 'SILVER') {
+      cost = 1000;
+      durationSec = 90;
+      spawnMult = 2.0;
+      vipRate = 0.45;
+    } else if (packageType === 'GOLD') {
+      cost = 2000;
+      durationSec = 120;
+      spawnMult = 3.0;
+      vipRate = 0.75;
     }
 
-    const cost = 10000;
+    if (!this.deductCash(cost)) return false;
+
+    this.activeSocialAdPackage = {
+      type: packageType,
+      endsTimestamp: Date.now() + durationSec * 1000,
+      spawnMultiplier: spawnMult,
+      vipChance: vipRate
+    };
+
+    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `📱 REKLAM KAMPANYASI BAŞLATILDI! (${packageType} Paket: +%${Math.round((spawnMult - 1) * 100)} Müşteri & %${Math.round(vipRate * 100)} VIP Oranı)`);
+    this.eventBus.emit(GameEventType.STATE_CHANGED, this.state);
+    this.saveState();
+    return true;
+  }
+
+  public openNewFranchiseBranch(): boolean {
+    const BRANCH_NAMES = [
+      'Nişantaşı Lüks Salon',
+      'Kadıköy Moda Salon',
+      'Beşiktaş Çarşı Salon',
+      'Bebek Sahil Salon',
+      'Etiler VIP Salon',
+      'Göktürk Prestige Salon',
+      'Bağdat Caddesi Salon',
+      'Kanyon Deluxe Salon'
+    ];
+
+    const nextBranchIdx = this.state.branches.length;
+    const baseCost = 10000;
+    const cost = Math.floor(baseCost * Math.pow(2.2, nextBranchIdx - 1));
     if (this.state.cash < cost) return false;
 
     this.state.cash -= cost;
     this.addDiamonds(25);
 
-    const newBranchIndex = this.state.branches.length;
+    const salonName = BRANCH_NAMES[nextBranchIdx] || `Lüks Şube #${nextBranchIdx + 1}`;
+
     const newBranch: ISalonState = {
-      branchIndex: newBranchIndex,
-      salonName: `Nişantaşı Lüks Şube #${newBranchIndex + 1}`,
+      branchIndex: nextBranchIdx,
+      salonName: salonName,
       salonLevel: 1,
       chairsCount: 1,
       chairsOccupied: 0,
       queueCapacity: 1,
-      prestigeMultiplier: 1.5,
+      prestigeMultiplier: 1.5 + nextBranchIdx * 0.5,
       theme: { floorStyle: 'GOLDEN_QUARTZ', wallStyle: 'LUXE_GOLD' },
       upgrades: createDefaultUpgrades(),
       waitingSofasCount: 1,
@@ -501,10 +545,10 @@ export class StateStore {
     };
 
     this.state.branches.push(newBranch);
-    this.state.activeBranchIndex = newBranchIndex;
+    this.state.activeBranchIndex = nextBranchIdx;
 
     this.eventBus.emit(GameEventType.FRANCHISE_OPENED, this.state.branches.length);
-    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `🏰 TEBRİKLER! NİŞANTAŞI 2. LÜKS ŞUBE KURULUMU BAŞLADI! (1 Saat İnşaat Süresi)`);
+    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `🏰 TEBRİKLER! ${salonName.toUpperCase()} KURULUMU BAŞLADI! (1 Saat İnşaat Süresi)`);
     this.eventBus.emit(GameEventType.STATE_CHANGED, this.state);
     this.saveState();
     return true;

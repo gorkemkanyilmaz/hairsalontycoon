@@ -67,6 +67,8 @@ export class UIManager {
     this.eventBus.on(GameEventType.BRANCH_SWITCHED, () => {
       this.renderBranchSwitcher();
     });
+
+    this.initTrainingHudBar();
   }
 
   public renderBranchSwitcher(): void {
@@ -343,89 +345,210 @@ export class UIManager {
     });
   }
 
+  private initTrainingHudBar(): void {
+    let bar = document.getElementById('training-hud-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'training-hud-bar';
+      document.body.appendChild(bar);
+    }
+    setInterval(() => this.updateTrainingHudBar(), 1000);
+  }
+
+  private updateTrainingHudBar(): void {
+    const bar = document.getElementById('training-hud-bar');
+    if (!bar) return;
+
+    const state = this.stateStore.getState();
+    const employees = state.employees || [];
+    const inTraining = employees.filter(
+      (e) => e.trainingEndsTimestamp && e.trainingEndsTimestamp > Date.now()
+    );
+
+    if (inTraining.length === 0) {
+      bar.innerHTML = '';
+      bar.style.display = 'none';
+      return;
+    }
+
+    bar.style.display = 'flex';
+    let html = '';
+
+    const BRANCH_NAMES = [
+      'Nişantaşı Lüks Salon',
+      'Kadıköy Moda Salon',
+      'Beşiktaş Çarşı Salon',
+      'Bebek Sahil Salon',
+      'Etiler VIP Salon',
+      'Göktürk Prestige Salon',
+      'Bağdat Caddesi Salon',
+      'Kanyon Deluxe Salon'
+    ];
+
+    inTraining.forEach((emp) => {
+      const remainingSec = Math.max(1, Math.ceil((emp.trainingEndsTimestamp! - Date.now()) / 1000));
+      const bIdx = emp.branchIndex || 0;
+      const bName = BRANCH_NAMES[bIdx] || `Şube #${bIdx + 1}`;
+      const canAfford = state.diamonds >= 10;
+
+      html += `
+        <div class="training-hud-card">
+          <span style="font-size: 20px;">🎓</span>
+          <div style="flex: 1; text-align: left;">
+            <div style="font-weight: 900; color: #fbbf24; font-size: 12px; letter-spacing: 0.3px;">${emp.name} (${bName})</div>
+            <div style="font-size: 11px; color: #cbd5e1; margin-top: 1px;">
+              🎓 Seviye ${emp.level} ➔ Seviye ${emp.level + 1} | <span style="color: #ffffff; font-weight: 800;">⏳ ${remainingSec}s</span>
+            </div>
+          </div>
+          <button class="btn-speedup-hud ${canAfford ? '' : 'disabled'}" data-emp-id="${emp.id}">
+            ⚡ 10 💎 Hızlı Bitir
+          </button>
+        </div>
+      `;
+    });
+
+    bar.innerHTML = html;
+
+    bar.querySelectorAll('.btn-speedup-hud').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const empId = (e.currentTarget as HTMLElement).getAttribute('data-emp-id');
+        const emp = employees.find((x) => x.id === empId);
+        if (emp && state.diamonds >= 10) {
+          if (this.stateStore.deductDiamonds(10)) {
+            emp.trainingEndsTimestamp = undefined;
+            emp.level += 1;
+            emp.speedMultiplier = 1.0 + (emp.level - 1) * 0.25;
+            this.stateStore.saveState();
+            EventBus.getInstance().emit(GameEventType.NOTIFICATION_TRIGGERED, `⚡ ${emp.name} Eğitimi Elmas ile Anında Tamamlandı! (Seviye ${emp.level})`);
+            EventBus.getInstance().emit(GameEventType.EMPLOYEE_LEVEL_UP, emp);
+            this.updateTrainingHudBar();
+          }
+        }
+      });
+    });
+  }
+
   public openFranchiseModal(): void {
     const state = this.stateStore.getState();
-    const isBranch2Open = state.branches.length >= 2;
-    const branch2 = state.branches[1];
-    const isUnderConstruction = branch2 && branch2.constructionEndsTimestamp && branch2.constructionEndsTimestamp > Date.now();
-    const canAffordFranchise = state.cash >= 10000 && !isBranch2Open;
-    const canAffordInsta = state.cash >= 200;
+    const branchCount = state.branches.length;
+    const nextBranchIdx = branchCount;
 
-    let branch2Html = '';
-    if (isBranch2Open) {
+    const BRANCH_NAMES = [
+      'Nişantaşı Lüks Salon',
+      'Kadıköy Moda Salon',
+      'Beşiktaş Çarşı Salon',
+      'Bebek Sahil Salon',
+      'Etiler VIP Salon',
+      'Göktürk Prestige Salon',
+      'Bağdat Caddesi Salon',
+      'Kanyon Deluxe Salon'
+    ];
+
+    const nextBranchName = BRANCH_NAMES[nextBranchIdx] || `Lüks Şube #${nextBranchIdx + 1}`;
+    const baseCost = 10000;
+    const nextCost = Math.floor(baseCost * Math.pow(2.2, nextBranchIdx - 1));
+    const canAffordFranchise = state.cash >= nextCost;
+
+    const activeAd = this.stateStore.activeSocialAdPackage;
+    const isAdActive = activeAd && Date.now() < activeAd.endsTimestamp;
+    const remainingAdSec = isAdActive ? Math.max(1, Math.ceil((activeAd.endsTimestamp - Date.now()) / 1000)) : 0;
+
+    let branchListHtml = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+
+    state.branches.forEach((b, idx) => {
+      const isUnderConstruction = b.constructionEndsTimestamp && b.constructionEndsTimestamp > Date.now();
       if (isUnderConstruction) {
-        const remainingSec = Math.max(1, Math.ceil((branch2.constructionEndsTimestamp! - Date.now()) / 1000));
+        const remainingSec = Math.max(1, Math.ceil((b.constructionEndsTimestamp! - Date.now()) / 1000));
         const mins = Math.floor(remainingSec / 60);
         const secs = remainingSec % 60;
         const timeStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
         const canAffordDiamondSpeedup = state.diamonds >= 50;
 
-        branch2Html = `
-          <div style="background: rgba(245, 158, 11, 0.15); border: 2px solid #f59e0b; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
-            <div style="color: #fbbf24; font-size: 13px; font-weight: 800;">🚧 NİŞANTAŞI İNŞAATI/KURULUMU SÜRÜYOR: ${timeStr}</div>
-            <button class="btn-upgrade ${canAffordDiamondSpeedup ? '' : 'disabled'}" id="btn-speedup-construction" style="background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+        branchListHtml += `
+          <div style="background: rgba(245, 158, 11, 0.15); border: 2px solid #f59e0b; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 6px;">
+            <div style="color: #fbbf24; font-size: 13px; font-weight: 800;">🚧 ${b.salonName.toUpperCase()} İNŞAAT/KURULUM: ${timeStr}</div>
+            <button class="btn-upgrade ${canAffordDiamondSpeedup ? '' : 'disabled'}" data-speedup-branch="${idx}" style="background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
               ⚡ 50 💎 Elmas ile Anında Kur
             </button>
           </div>
         `;
       } else {
-        branch2Html = `
-          <button class="btn-upgrade" disabled style="background: rgba(6, 214, 160, 0.2); border-color: #06d6a0; color: #06d6a0;">
-            🟢 2. NİŞANTAŞI ŞUBESİ AÇIK & AKTİF (İŞLETİLİYOR)
-          </button>
+        branchListHtml += `
+          <div style="background: rgba(6, 214, 160, 0.12); border: 1px solid #06d6a0; border-radius: 12px; padding: 10px; font-size: 12px; color: #06d6a0; font-weight: 800;">
+            🟢 ${b.salonName.toUpperCase()} (AKTİF İŞLETİLİYOR)
+          </div>
         `;
       }
-    } else {
-      branch2Html = `
-        <button class="btn-upgrade ${canAffordFranchise ? '' : 'disabled'}" id="btn-open-franchise">
-          🏰 ₺10,000 İLE NİŞANTAŞI 2. LÜKS ŞUBEYİ AÇ (+1 SAAT İNŞAAT)
-        </button>
-      `;
-    }
+    });
 
-    this.openModal('📢 Reklam Kampanyası & 🏰 Şube Açılışı', `
-      <div style="padding: 16px; color: white; display: flex; flex-direction: column; gap: 16px;">
-        <!-- Social Media Marketing Campaigns -->
+    branchListHtml += `
+      <button class="btn-upgrade ${canAffordFranchise ? '' : 'disabled'}" id="btn-open-franchise" style="margin-top: 8px;">
+        🏰 ₺${nextCost.toLocaleString()} İLE ${nextBranchName.toUpperCase()} AÇ (+1 SAAT İNŞAAT)
+      </button>
+    </div>`;
+
+    this.openModal('📢 Reklam Paketleri & 🏰 Şube İmparatorluğu', `
+      <div style="padding: 16px; color: white; display: flex; flex-direction: column; gap: 16px; font-family: 'Outfit', sans-serif;">
+        <!-- Social Media Marketing Packages -->
         <div style="background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(168, 85, 247, 0.2)); border: 2px solid #38bdf8; border-radius: 18px; padding: 16px;">
-          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-            <span style="font-size: 32px;">📢</span>
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+            <span style="font-size: 32px;">📱</span>
             <div>
-              <h3 style="margin: 0; color: #38bdf8; font-size: 16px;">Sosyal Medya & Reklam Kampanyası</h3>
-              <p style="margin: 2px 0 0 0; font-size: 12px; color: #cbd5e1;">Bekleme koltuklarını doldurun! Müşteri geliş hızını 2.5 katına çıkarır.</p>
+              <h3 style="margin: 0; color: #38bdf8; font-size: 16px; font-weight: 900;">Sosyal Medya Reklam Paketleri</h3>
+              <p style="margin: 2px 0 0 0; font-size: 12px; color: #cbd5e1;">Seçilen pakete göre Müşteri Akını ve VIP Oranı yükselir!</p>
             </div>
           </div>
 
-          <div style="display: flex; gap: 8px; margin-top: 10px;">
-            <button class="btn-upgrade" id="btn-ad-insta" ${this.stateStore.isMarketingActive || !canAffordInsta ? 'disabled' : ''} style="flex: 1; font-size: 11px; padding: 8px;">
-              ${this.stateStore.isMarketingActive ? '⏱️ REKLAM AKTİF' : '📸 Instagram Influencer (₺200 / 60s)'}
-            </button>
-          </div>
+          ${
+            isAdActive
+              ? `<div style="background: rgba(6, 214, 160, 0.2); border: 1.5px solid #06d6a0; border-radius: 12px; padding: 10px; text-align: center; color: #06d6a0; font-weight: 800;">
+                  ⏱️ REKLAM KAMPANYASI AKTİF (${activeAd!.type} PAKET) — KALAN: ${remainingAdSec}s
+                 </div>`
+              : `<div style="display: flex; flex-direction: column; gap: 8px;">
+                  <button class="btn-upgrade ${state.cash >= 500 ? '' : 'disabled'}" id="btn-ad-bronze" style="font-size: 12px; padding: 10px; text-align: left; display: flex; justify-content: space-between;">
+                    <span>🌱 Bronz Paket (+50% Müşteri, %25 VIP)</span>
+                    <span>₺500 / 60s</span>
+                  </button>
+                  <button class="btn-upgrade ${state.cash >= 1000 ? '' : 'disabled'}" id="btn-ad-silver" style="font-size: 12px; padding: 10px; text-align: left; display: flex; justify-content: space-between; background: linear-gradient(135deg, #a855f7, #7e22ce);">
+                    <span>⭐ Gümüş Paket (+100% Müşteri, %45 VIP)</span>
+                    <span>₺1,000 / 90s</span>
+                  </button>
+                  <button class="btn-upgrade ${state.cash >= 2000 ? '' : 'disabled'}" id="btn-ad-gold" style="font-size: 12px; padding: 10px; text-align: left; display: flex; justify-content: space-between; background: linear-gradient(135deg, #fbbf24, #d97706); color: #1e1b4b;">
+                    <span>👑 Altın VIP Paket (+200% Mega Akın, %75 VIP)</span>
+                    <span>₺2,000 / 120s</span>
+                  </button>
+                 </div>`
+          }
         </div>
 
         <!-- Fashion Week Event -->
         <div style="background: linear-gradient(135deg, rgba(239, 71, 111, 0.25), rgba(157, 78, 221, 0.25)); border: 2px solid #ef476f; border-radius: 18px; padding: 16px; text-align: center;">
           <p style="font-size: 32px; margin-bottom: 2px;">💃</p>
-          <h3 style="margin: 0 0 4px 0; color: #ef476f; font-size: 16px;">Fashion Week VIP Kırmızı Halı Defilesi</h3>
+          <h3 style="margin: 0 0 4px 0; color: #ef476f; font-size: 16px; font-weight: 900;">Fashion Week VIP Defilesi</h3>
           <p style="margin: 0 0 10px 0; font-size: 12px; color: #fbcfe8;">25 saniye boyunca <strong>5x Gelir & +10 Elmas!</strong></p>
-          <button class="btn-upgrade" id="btn-start-fashion" ${state.isFashionEventActive ? 'disabled' : ''}>
+          <button class="btn-upgrade ${state.isFashionEventActive ? 'disabled' : ''}" id="btn-start-fashion">
             ${state.isFashionEventActive ? '💃 DEFİLE DEVAM EDİYOR...' : '💃 DEFİLE ETKİNLİĞİNİ BAŞLAT (+10 💎)'}
           </button>
         </div>
 
-        <!-- 2nd Salon Branch Expansion -->
+        <!-- Infinite Salon Branch Expansion -->
         <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(247, 37, 133, 0.2)); border: 2px solid #fbbf24; border-radius: 18px; padding: 16px; text-align: center;">
           <p style="font-size: 32px; margin-bottom: 2px;">🏰</p>
-          <h3 style="margin: 0 0 4px 0; color: #fbbf24; font-size: 16px;">Nişantaşı Lüks Franchise Şubesi</h3>
-          <p style="margin: 0 0 10px 0; font-size: 12px; color: #fbcfe8;">Mevcut Şube: <strong>${state.branches.length} Şube</strong> | Prestij: <strong style="color: #06d6a0;">+${Math.round((this.stateStore.getActiveBranch().prestigeMultiplier - 1) * 100)}% Kazanç</strong></p>
-          ${branch2Html}
+          <h3 style="margin: 0 0 4px 0; color: #fbbf24; font-size: 16px; font-weight: 900;">Sonsuz Şube İmparatorluğu</h3>
+          <p style="margin: 0 0 10px 0; font-size: 12px; color: #fbcfe8;">Mevcut Şubeler: <strong>${branchCount} Şube</strong> | Prestij: <strong style="color: #06d6a0;">+${Math.round((this.stateStore.getActiveBranch().prestigeMultiplier - 1) * 100)}% Kazanç</strong></p>
+          ${branchListHtml}
         </div>
       </div>
     `);
 
-    document.getElementById('btn-ad-insta')?.addEventListener('click', () => {
-      if (this.stateStore.startMarketingCampaign('INSTAGRAM')) {
-        this.openFranchiseModal();
-      }
+    document.getElementById('btn-ad-bronze')?.addEventListener('click', () => {
+      if (this.stateStore.startSocialMediaAdPackage('BRONZE')) this.openFranchiseModal();
+    });
+    document.getElementById('btn-ad-silver')?.addEventListener('click', () => {
+      if (this.stateStore.startSocialMediaAdPackage('SILVER')) this.openFranchiseModal();
+    });
+    document.getElementById('btn-ad-gold')?.addEventListener('click', () => {
+      if (this.stateStore.startSocialMediaAdPackage('GOLD')) this.openFranchiseModal();
     });
 
     document.getElementById('btn-start-fashion')?.addEventListener('click', () => {
@@ -439,20 +562,14 @@ export class UIManager {
       }
     });
 
-    document.getElementById('btn-speedup-construction')?.addEventListener('click', () => {
-      if (this.stateStore.speedUpBranchConstructionWithDiamonds(1)) {
-        this.openFranchiseModal();
-      }
-    });
-
-    if (this.franchiseTimer) clearInterval(this.franchiseTimer);
-    if (isUnderConstruction) {
-      this.franchiseTimer = setInterval(() => {
-        if (!this.modalOverlay.classList.contains('hidden')) {
+    this.modalBody.querySelectorAll('[data-speedup-branch]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const bIdx = parseInt((e.currentTarget as HTMLElement).getAttribute('data-speedup-branch') || '0', 10);
+        if (this.stateStore.speedUpBranchConstructionWithDiamonds(bIdx)) {
           this.openFranchiseModal();
         }
-      }, 1000);
-    }
+      });
+    });
   }
 
   private renderUpgradesList(): void {

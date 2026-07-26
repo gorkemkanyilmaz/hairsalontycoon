@@ -34,24 +34,13 @@ export class EmployeeManager {
   private updateEmployeeAI(emp: IEmployeeData, customers: ICustomerNPC[], deltaSec: number): void {
     this.moveTowardsTarget(emp, deltaSec);
 
-    // If employee is in training, skip work until training timer expires
+    // If employee is in training, skip automated work until training timer expires
     if (emp.trainingEndsTimestamp) {
       if (Date.now() < emp.trainingEndsTimestamp) {
         emp.state = EmployeeState.TRAINING;
         const branchOffset = (emp.branchIndex || 0) * 30;
         emp.targetX = 1 + branchOffset;
         emp.targetY = 1;
-
-        // Clear any seated customer at emp's assigned chair so chair is empty!
-        if (emp.assignedChairIndex !== undefined) {
-          const seatedCustomer = customers.find(
-            (c) => (c.branchIndex || 0) === (emp.branchIndex || 0) &&
-            c.assignedChairIndex === emp.assignedChairIndex && (c.state === CustomerState.SEATED || c.state === CustomerState.RECEIVING_SERVICE)
-          );
-          if (seatedCustomer) {
-            this.customerManager.finishHaircut(seatedCustomer, 'GREAT');
-          }
-        }
         return;
       } else {
         emp.trainingEndsTimestamp = undefined;

@@ -142,10 +142,14 @@ export class IsometricRenderer {
     const targetCenterX = (window.innerWidth / 2) - (isoCenterX * this.zoom);
     const targetCenterY = (window.innerHeight / 2) - (isoCenterY * this.zoom) + 90 * this.zoom;
 
-    const maxPanLimit = 650 * this.zoom;
+    const branchCount = Math.max(1, this.stateStore.getState().branches ? this.stateStore.getState().branches.length : 1);
+    const rightmostOffset = (branchCount - 1) * (1920 * this.zoom / 2);
 
-    this.offsetX = Math.max(targetCenterX - maxPanLimit, Math.min(targetCenterX + maxPanLimit, this.offsetX));
-    this.offsetY = Math.max(targetCenterY - maxPanLimit, Math.min(targetCenterY + maxPanLimit, this.offsetY));
+    const minOffsetX = targetCenterX - rightmostOffset - 1200 * this.zoom;
+    const maxOffsetX = targetCenterX + 800 * this.zoom;
+
+    this.offsetX = Math.max(minOffsetX, Math.min(maxOffsetX, this.offsetX));
+    this.offsetY = Math.max(targetCenterY - 800 * this.zoom, Math.min(targetCenterY + 800 * this.zoom, this.offsetY));
   }
 
   public zoomIn(): void {

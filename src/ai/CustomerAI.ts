@@ -212,14 +212,6 @@ export class CustomerManager {
     let freeChairIdx = -1;
     for (let i = 0; i < chairsCount; i++) {
       if (chairSlots[i] && chairSlots[i].reservedBy === null) {
-        const employees = this.stateStore.getState().employees;
-        const isStylistInTraining = employees.some(
-          (emp) => (emp.branchIndex || 0) === bIdx &&
-          emp.assignedChairIndex === i &&
-          emp.trainingEndsTimestamp && Date.now() < emp.trainingEndsTimestamp
-        );
-        if (isStylistInTraining) continue;
-
         freeChairIdx = i;
         break;
       }
@@ -279,14 +271,6 @@ export class CustomerManager {
     let freeChairIndex = -1;
     for (let i = 0; i < chairsCount; i++) {
       if (chairSlots[i] && chairSlots[i].reservedBy === null) {
-        const employees = this.stateStore.getState().employees;
-        const isStylistInTraining = employees.some(
-          (emp) => (emp.branchIndex || 0) === bIdx &&
-          emp.assignedChairIndex === i &&
-          emp.trainingEndsTimestamp && Date.now() < emp.trainingEndsTimestamp
-        );
-        if (isStylistInTraining) continue;
-
         freeChairIndex = i;
         break;
       }
@@ -305,8 +289,10 @@ export class CustomerManager {
       return;
     }
 
-    const vipUnlocked = (branchData.upgrades?.vip_attractor?.level || 0) >= 1;
-    const isVIP = Math.random() < (vipUnlocked ? 0.50 : 0.20);
+    const socialAd = this.stateStore.activeSocialAdPackage;
+    const isAdActive = socialAd && Date.now() < socialAd.endsTimestamp;
+    const baseVipChance = isAdActive ? socialAd.vipChance : ((branchData.upgrades?.vip_attractor?.level || 0) >= 1 ? 0.50 : 0.20);
+    const isVIP = Math.random() < baseVipChance;
 
     const randomName = isVIP
       ? VIP_NAMES[Math.floor(Math.random() * VIP_NAMES.length)]
