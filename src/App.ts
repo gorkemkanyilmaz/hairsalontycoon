@@ -11,6 +11,8 @@ import { HaircutMinigame } from './ui/HaircutMinigame';
 import { SoundEngine } from './audio/SoundEngine';
 import { OfflineEarningsManager } from './core/OfflineEarnings';
 
+import { TutorialManager } from './ui/TutorialManager';
+
 export class App {
   private stateStore: StateStore;
   private timeManager: TimeManager;
@@ -21,6 +23,7 @@ export class App {
   private hud!: HUD;
   private uiManager!: UIManager;
   private haircutMinigame!: HaircutMinigame;
+  private tutorialManager!: TutorialManager;
 
   private toastElement!: HTMLElement;
 
@@ -38,12 +41,25 @@ export class App {
     // 1. Initialize Isometric Canvas Renderer
     this.renderer = new IsometricRenderer('canvas-container');
 
-    // 2. Initialize HUD, UI Managers & Minigame
+    // 2. Initialize HUD, UI Managers, Minigame & Tutorial Manager
     this.hud = new HUD();
     this.uiManager = new UIManager();
     this.haircutMinigame = new HaircutMinigame();
+    this.tutorialManager = TutorialManager.getInstance();
 
     this.createToastDOM();
+
+    // 3. Low Stock Alert Glow Listener
+    this.eventBus.on(GameEventType.STATE_CHANGED, (state) => {
+      const stockBtn = document.getElementById('btn-products');
+      if (stockBtn) {
+        if (state.retailProductsStock <= 10) {
+          stockBtn.classList.add('low-stock-alert');
+        } else {
+          stockBtn.classList.remove('low-stock-alert');
+        }
+      }
+    });
 
     // 3. Register Audio Sound Effect Event Handlers
     this.registerAudioEvents();

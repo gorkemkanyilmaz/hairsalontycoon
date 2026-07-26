@@ -192,6 +192,22 @@ export class StateStore {
     return true;
   }
 
+  // Consume 1 shampoo stock unit for every customer serviced
+  public consumeShampooStock(): boolean {
+    if (this.state.retailProductsStock <= 0) {
+      this.state.retailProductsStock = 0;
+      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `⚠️ 🧴 ŞAMPUAN BİTTİ! Müşteriler saç bakımı yapılamadığı için memnuniyetsiz ayrılıyor!`);
+      this.eventBus.emit(GameEventType.STATE_CHANGED, this.state);
+      this.saveState();
+      return false;
+    }
+
+    this.state.retailProductsStock -= 1;
+    this.eventBus.emit(GameEventType.STATE_CHANGED, this.state);
+    this.saveState();
+    return true;
+  }
+
   // Buy a 2nd barber station (chair + mirror) for the active branch. ₺500.
   public buyBarberStation(): boolean {
     const branch = this.getActiveBranch();
