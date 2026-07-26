@@ -68,10 +68,35 @@ export class CustomerManager {
 
   private spawnTimer: number = 0;
   private spawnIntervalSec: number = 4.5;
+  private waitingSlotsMap: Map<number, ISeatSlot[]> = new Map();
+  private barberChairSlotsMap: Map<number, ISeatSlot[]> = new Map();
 
   private getBranchOffset(bIdx?: number): number {
     const idx = bIdx !== undefined ? bIdx : (this.stateStore.getState().activeBranchIndex || 0);
     return idx * 20;
+  }
+
+  public getWaitingSlotsForBranch(bIdx: number): ISeatSlot[] {
+    if (!this.waitingSlotsMap.has(bIdx)) {
+      const offset = bIdx * 20;
+      this.waitingSlotsMap.set(bIdx, [
+        { x: 2 + offset, y: 9, reservedBy: null },
+        { x: 5 + offset, y: 9, reservedBy: null },
+        { x: 8 + offset, y: 9, reservedBy: null }
+      ]);
+    }
+    return this.waitingSlotsMap.get(bIdx)!;
+  }
+
+  public getBarberChairSlotsForBranch(bIdx: number): ISeatSlot[] {
+    if (!this.barberChairSlotsMap.has(bIdx)) {
+      const offset = bIdx * 20;
+      this.barberChairSlotsMap.set(bIdx, [
+        { x: 5 + offset, y: 3, reservedBy: null },
+        { x: 8 + offset, y: 3, reservedBy: null }
+      ]);
+    }
+    return this.barberChairSlotsMap.get(bIdx)!;
   }
 
   public getDoorTile(bIdx?: number): { x: number; y: number } {
@@ -83,25 +108,14 @@ export class CustomerManager {
   }
 
   public getWaitingSlotTile(bIdx: number, slotIdx: number): { x: number; y: number } {
-    const baseX = slotIdx === 0 ? 2 : (slotIdx === 1 ? 5 : 8);
-    return { x: baseX + this.getBranchOffset(bIdx), y: 9 };
+    const slots = this.getWaitingSlotsForBranch(bIdx);
+    return { x: slots[slotIdx]?.x || (2 + bIdx * 20), y: 9 };
   }
 
   public getChairSlotTile(bIdx: number, chairIdx: number): { x: number; y: number } {
-    const baseX = chairIdx === 1 ? 8 : 5;
-    return { x: baseX + this.getBranchOffset(bIdx), y: 3 };
+    const slots = this.getBarberChairSlotsForBranch(bIdx);
+    return { x: slots[chairIdx]?.x || (5 + bIdx * 20), y: 3 };
   }
-
-  public waitingSlots: ISeatSlot[] = [
-    { x: 2, y: 9, reservedBy: null },
-    { x: 5, y: 9, reservedBy: null },
-    { x: 8, y: 9, reservedBy: null }
-  ];
-
-  public barberChairSlots: ISeatSlot[] = [
-    { x: 5, y: 3, reservedBy: null },
-    { x: 8, y: 3, reservedBy: null }
-  ];
 
   private constructor() {
     this.stateStore = StateStore.getInstance();
@@ -121,21 +135,23 @@ export class CustomerManager {
   }
 
   public update(deltaSec: number): void {
-    this.cleanStaleReservations();
-    this.promoteFirstInQueueToFreeChair();
+    const branches = this.stateStore.getState().branches || [this.stateStore.getActiveBranch()];
+
+    branches.forEach((_, bIdx) => this.cleanStaleReservationsForBranch(bIdx));
+    branches.forEach((_, bIdx) => this.promoteFirstInQueueToFreeChairForBranch(bIdx));
 
     const targetInterval = this.stateStore.isMarketingActive ? 1.8 : this.spawnIntervalSec;
     this.spawnTimer += deltaSec;
     if (this.spawnTimer >= targetInterval) {
       this.spawnTimer = 0;
-      this.trySpawnCustomer();
+      branches.forEach((_, bIdx) => this.trySpawnCustomerForBranch(bIdx));
     }
 
     const activeBIdx = this.stateStore.getState().activeBranchIndex || 0;
     const activeBranchCusts = this.customers.filter((c) => (c.branchIndex || 0) === activeBIdx);
-    if (activeBranchCusts.length === 0 && this.spawnTimer > 1.0) {
+    if (activeBranchCusts.length === 0 && this.spawnTimer > 0.8) {
       this.spawnTimer = 0;
-      this.trySpawnCustomer();
+      this.trySpawnCustomerForBranch(activeBIdx);
     }
 
     for (let i = 0; i < this.customers.length; i++) {
@@ -148,21 +164,24 @@ export class CustomerManager {
         customer.state === CustomerState.LEAVING &&
         Math.hypot(customer.posX - doorTile.x, customer.posY - doorTile.y) < 0.6
       ) {
-        this.freeCustomerReservations(customer.id);
+        this.freeCustomerReservations(customer.id, customer.branchIndex || 0);
         this.customers.splice(i, 1);
         i--;
       }
     }
   }
 
-  private cleanStaleReservations(): void {
+  private cleanStaleReservationsForBranch(bIdx: number): void {
+    const waitingSlots = this.getWaitingSlotsForBranch(bIdx);
+    const chairSlots = this.getBarberChairSlotsForBranch(bIdx);
+
     const activeWaitingIds = new Set(
       this.customers
-        .filter((c) => (c.state === CustomerState.WAITING_IN_QUEUE || c.state === CustomerState.ENTERING) && c.assignedWaitingIndex !== undefined)
+        .filter((c) => (c.branchIndex || 0) === bIdx && (c.state === CustomerState.WAITING_IN_QUEUE || c.state === CustomerState.ENTERING) && c.assignedWaitingIndex !== undefined)
         .map((c) => c.id)
     );
 
-    this.waitingSlots.forEach((s) => {
+    waitingSlots.forEach((s) => {
       if (s.reservedBy && !activeWaitingIds.has(s.reservedBy)) {
         s.reservedBy = null;
       }
@@ -170,25 +189,26 @@ export class CustomerManager {
 
     const activeChairIds = new Set(
       this.customers
-        .filter((c) => (c.state === CustomerState.SEATED || c.state === CustomerState.RECEIVING_SERVICE || c.state === CustomerState.ENTERING) && c.assignedChairIndex !== undefined)
+        .filter((c) => (c.branchIndex || 0) === bIdx && (c.state === CustomerState.SEATED || c.state === CustomerState.RECEIVING_SERVICE || c.state === CustomerState.ENTERING) && c.assignedChairIndex !== undefined)
         .map((c) => c.id)
     );
 
-    this.barberChairSlots.forEach((s) => {
+    chairSlots.forEach((s) => {
       if (s.reservedBy && !activeChairIds.has(s.reservedBy)) {
         s.reservedBy = null;
       }
     });
   }
 
-  private promoteFirstInQueueToFreeChair(): void {
-    const activeBranch = this.stateStore.getActiveBranch();
-    const activeBIdx = this.stateStore.getState().activeBranchIndex || 0;
-    const chairsCount = activeBranch.chairsCount || 1;
+  private promoteFirstInQueueToFreeChairForBranch(bIdx: number): void {
+    const branchData = this.stateStore.getState().branches?.[bIdx] || this.stateStore.getActiveBranch();
+    const chairsCount = branchData.chairsCount || 1;
+    const chairSlots = this.getBarberChairSlotsForBranch(bIdx);
+    const waitingSlots = this.getWaitingSlotsForBranch(bIdx);
 
     let freeChairIdx = -1;
     for (let i = 0; i < chairsCount; i++) {
-      if (this.barberChairSlots[i].reservedBy === null) {
+      if (chairSlots[i] && chairSlots[i].reservedBy === null) {
         freeChairIdx = i;
         break;
       }
@@ -198,7 +218,7 @@ export class CustomerManager {
 
     const waitingCandidates = this.customers.filter(
       (c) =>
-        (c.branchIndex || 0) === activeBIdx &&
+        (c.branchIndex || 0) === bIdx &&
         (c.state === CustomerState.WAITING_IN_QUEUE ||
         (c.state === CustomerState.ENTERING &&
           c.assignedChairIndex === undefined &&
@@ -214,13 +234,13 @@ export class CustomerManager {
 
     const firstInQueue = waitingCandidates[0];
 
-    if (firstInQueue.assignedWaitingIndex !== undefined && this.waitingSlots[firstInQueue.assignedWaitingIndex]) {
-      this.waitingSlots[firstInQueue.assignedWaitingIndex].reservedBy = null;
+    if (firstInQueue.assignedWaitingIndex !== undefined && waitingSlots[firstInQueue.assignedWaitingIndex]) {
+      waitingSlots[firstInQueue.assignedWaitingIndex].reservedBy = null;
       firstInQueue.assignedWaitingIndex = undefined;
     }
 
-    const chairTile = this.getChairSlotTile(activeBIdx, freeChairIdx);
-    this.barberChairSlots[freeChairIdx].reservedBy = firstInQueue.id;
+    const chairTile = this.getChairSlotTile(bIdx, freeChairIdx);
+    chairSlots[freeChairIdx].reservedBy = firstInQueue.id;
     firstInQueue.assignedChairIndex = freeChairIdx;
     firstInQueue.targetX = chairTile.x;
     firstInQueue.targetY = chairTile.y;
@@ -229,28 +249,34 @@ export class CustomerManager {
 
   private trySpawnCustomer(): void {
     const activeBIdx = this.stateStore.getState().activeBranchIndex || 0;
-    const doorTile = this.getDoorTile(activeBIdx);
+    this.trySpawnCustomerForBranch(activeBIdx);
+  }
+
+  private trySpawnCustomerForBranch(bIdx: number): void {
+    const doorTile = this.getDoorTile(bIdx);
 
     const customerAtDoor = this.customers.some(
-      (c) => (c.branchIndex || 0) === activeBIdx && Math.hypot(c.posX - doorTile.x, c.posY - doorTile.y) < 3.2
+      (c) => (c.branchIndex || 0) === bIdx && Math.hypot(c.posX - doorTile.x, c.posY - doorTile.y) < 3.2
     );
     if (customerAtDoor) return;
 
-    const activeBranch = this.stateStore.getActiveBranch();
-    const chairsCount = activeBranch.chairsCount || 1;
+    const branchData = this.stateStore.getState().branches?.[bIdx] || this.stateStore.getActiveBranch();
+    const chairsCount = branchData.chairsCount || 1;
+    const chairSlots = this.getBarberChairSlotsForBranch(bIdx);
+    const waitingSlots = this.getWaitingSlotsForBranch(bIdx);
 
     let freeChairIndex = -1;
     for (let i = 0; i < chairsCount; i++) {
-      if (this.barberChairSlots[i].reservedBy === null) {
+      if (chairSlots[i] && chairSlots[i].reservedBy === null) {
         freeChairIndex = i;
         break;
       }
     }
 
-    const sofasCount = Math.max(1, activeBranch.waitingSofasCount || 1);
+    const sofasCount = Math.max(1, branchData.waitingSofasCount || 1);
     let freeWaitingSlotIndex = -1;
     for (let i = 0; i < sofasCount; i++) {
-      if (this.waitingSlots[i] && this.waitingSlots[i].reservedBy === null) {
+      if (waitingSlots[i] && waitingSlots[i].reservedBy === null) {
         freeWaitingSlotIndex = i;
         break;
       }
@@ -260,7 +286,7 @@ export class CustomerManager {
       return;
     }
 
-    const vipUnlocked = (activeBranch.upgrades?.vip_attractor?.level || 0) >= 1;
+    const vipUnlocked = (branchData.upgrades?.vip_attractor?.level || 0) >= 1;
     const isVIP = Math.random() < (vipUnlocked ? 0.50 : 0.20);
 
     const randomName = isVIP
@@ -273,19 +299,19 @@ export class CustomerManager {
     const randomCutWish = CUT_OPTIONS[Math.floor(Math.random() * CUT_OPTIONS.length)];
     const randomFinishWish = FINISH_OPTIONS[Math.floor(Math.random() * FINISH_OPTIONS.length)];
 
-    let targetX = 5 + activeBIdx * 20;
+    let targetX = 5 + bIdx * 20;
     let targetY = 3;
     let assignedWaitingIdx: number | undefined = undefined;
     let assignedChairIdx: number | undefined = undefined;
 
     if (freeChairIndex !== -1) {
       assignedChairIdx = freeChairIndex;
-      const t = this.getChairSlotTile(activeBIdx, freeChairIndex);
+      const t = this.getChairSlotTile(bIdx, freeChairIndex);
       targetX = t.x;
       targetY = t.y;
     } else {
       assignedWaitingIdx = freeWaitingSlotIndex;
-      const t = this.getWaitingSlotTile(activeBIdx, freeWaitingSlotIndex);
+      const t = this.getWaitingSlotTile(bIdx, freeWaitingSlotIndex);
       targetX = t.x;
       targetY = t.y;
     }
@@ -319,13 +345,13 @@ export class CustomerManager {
       isWalking: true,
       walkAnimPhase: 0,
       spawnTimestamp: Date.now(),
-      branchIndex: activeBIdx
+      branchIndex: bIdx
     };
 
     if (assignedChairIdx !== undefined) {
-      this.barberChairSlots[assignedChairIdx].reservedBy = newCustomer.id;
-    } else if (assignedWaitingIdx !== undefined && this.waitingSlots[assignedWaitingIdx]) {
-      this.waitingSlots[assignedWaitingIdx].reservedBy = newCustomer.id;
+      chairSlots[assignedChairIdx].reservedBy = newCustomer.id;
+    } else if (assignedWaitingIdx !== undefined && waitingSlots[assignedWaitingIdx]) {
+      waitingSlots[assignedWaitingIdx].reservedBy = newCustomer.id;
     }
 
     this.customers.push(newCustomer);
@@ -456,9 +482,10 @@ export class CustomerManager {
     customer.qualityRating = qualityRating;
     const bIdx = customer.branchIndex || 0;
     const receptionTile = this.getReceptionTile(bIdx);
+    const chairSlots = this.getBarberChairSlotsForBranch(bIdx);
 
-    if (customer.assignedChairIndex !== undefined) {
-      this.barberChairSlots[customer.assignedChairIndex].reservedBy = null;
+    if (customer.assignedChairIndex !== undefined && chairSlots[customer.assignedChairIndex]) {
+      chairSlots[customer.assignedChairIndex].reservedBy = null;
       customer.assignedChairIndex = undefined;
     }
 
@@ -520,11 +547,14 @@ export class CustomerManager {
     }
   }
 
-  private freeCustomerReservations(customerId: string): void {
-    this.waitingSlots.forEach((s) => {
+  private freeCustomerReservations(customerId: string, bIdx: number = 0): void {
+    const waitingSlots = this.getWaitingSlotsForBranch(bIdx);
+    const chairSlots = this.getBarberChairSlotsForBranch(bIdx);
+
+    waitingSlots.forEach((s) => {
       if (s.reservedBy === customerId) s.reservedBy = null;
     });
-    this.barberChairSlots.forEach((s) => {
+    chairSlots.forEach((s) => {
       if (s.reservedBy === customerId) s.reservedBy = null;
     });
   }
