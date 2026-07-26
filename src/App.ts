@@ -254,8 +254,16 @@ export class App {
 
     // Locked 2nd barber station tiles: (12,3) mirror + (12,4) chair
     if (stationsCount < 2) {
-      if (Math.hypot(gridPos.x - (12 + branchOffset), gridPos.y - 3) <= 1.8 || Math.hypot(gridPos.x - (12 + branchOffset), gridPos.y - 4) <= 1.8) {
+      if (Math.hypot(gridPos.x - (12 + branchOffset), gridPos.y - 3) <= 2.2 || Math.hypot(gridPos.x - (12 + branchOffset), gridPos.y - 4) <= 2.2) {
         this.uiManager.openBuyFurnitureModal('station', 1);
+        return true;
+      }
+    }
+
+    // Locked 3rd barber station tiles: (17,3) mirror + (17,4) chair (Unlocked via Salon Expansion upgrade)
+    if (stationsCount < 3) {
+      if (Math.hypot(gridPos.x - (17 + branchOffset), gridPos.y - 3) <= 2.2 || Math.hypot(gridPos.x - (17 + branchOffset), gridPos.y - 4) <= 2.2) {
+        this.uiManager.openUpgradesModal();
         return true;
       }
     }

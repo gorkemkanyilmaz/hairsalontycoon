@@ -521,7 +521,17 @@ export class CustomerManager {
         );
       }
 
-      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `✨ PARLAMA EFEKTİ! ${customer.name} tam istediği ${customer.wish.color} saç rengine kavuştu!`);
+      if (!customer.appliedHairColor) {
+        let hexColor = '#271206';
+        if (customer.wish.color === 'Sarı') hexColor = '#fde047';
+        else if (customer.wish.color === 'Kızıl') hexColor = '#dc2626';
+        else if (customer.wish.color === 'Platin') hexColor = '#e2e8f0';
+        else if (customer.wish.color === 'Esmer' || customer.wish.color === 'Siyah') hexColor = '#18181b';
+        else if (customer.wish.color === 'Kahverengi') hexColor = '#3b2314';
+        customer.appliedHairColor = hexColor;
+      }
+
+      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `✨ FİZİKSEL DÖNÜŞÜM! ${customer.name} saçı ${customer.wish.color} rengine boyandı!`);
 
       const activeBranch = this.stateStore.getActiveBranch();
       const chairMultiplier = 1 + ((activeBranch.upgrades?.comfy_chair?.level || 0) * 0.15);

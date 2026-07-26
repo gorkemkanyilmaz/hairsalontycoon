@@ -108,6 +108,9 @@ export class HaircutMinigame {
         border-radius: 24px;
         width: 100%;
         max-width: 520px;
+        max-height: 94vh;
+        display: flex;
+        flex-direction: column;
         box-shadow: 0 20px 50px rgba(244, 114, 182, 0.3);
         color: #ffffff;
         font-family: 'Outfit', sans-serif;
@@ -117,9 +120,10 @@ export class HaircutMinigame {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 18px 24px;
+        padding: 14px 20px;
         background: rgba(244, 114, 182, 0.12);
         border-bottom: 1px solid rgba(244, 114, 182, 0.2);
+        flex-shrink: 0;
       }
       .header-title {
         display: flex;
@@ -128,7 +132,7 @@ export class HaircutMinigame {
       }
       .header-title h3 {
         margin: 0;
-        font-size: 17px;
+        font-size: 16px;
         font-weight: 800;
         color: #fce7f3;
         letter-spacing: 0.5px;
@@ -141,10 +145,12 @@ export class HaircutMinigame {
         cursor: pointer;
       }
       .modal-body {
-        padding: 24px;
+        padding: 16px 20px;
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: 14px;
+        overflow-y: auto;
+        max-height: calc(94vh - 55px);
       }
       .customer-wish-box {
         background: linear-gradient(135deg, rgba(247, 37, 133, 0.2), rgba(114, 9, 183, 0.2));
@@ -340,6 +346,15 @@ export class HaircutMinigame {
       rating = 'POOR';
       feedbackMsg = `⚠️ KÖTÜ KESİM! ${this.currentCustomer.name}: "İstediğim saç bu değildi!" (₺0 Bahşiş)`;
     }
+
+    let hexColor = '#271206';
+    if (this.selectedColor === 'Sarı') hexColor = '#fde047';
+    else if (this.selectedColor === 'Kızıl') hexColor = '#dc2626';
+    else if (this.selectedColor === 'Platin') hexColor = '#e2e8f0';
+    else if (this.selectedColor === 'Esmer' || this.selectedColor === 'Siyah') hexColor = '#18181b';
+    else if (this.selectedColor === 'Kahverengi') hexColor = '#3b2314';
+
+    this.currentCustomer.appliedHairColor = hexColor;
 
     EventBus.getInstance().emit('NOTIFICATION_TRIGGERED', feedbackMsg);
     this.customerManager.finishHaircut(this.currentCustomer, rating);

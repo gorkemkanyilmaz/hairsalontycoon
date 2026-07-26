@@ -352,7 +352,12 @@ export class TutorialManager {
 
   private checkCashPrerequisites(cash: number): void {
     if (this.currentStep === TutorialStep.COLLECT_CASH_DESK && cash > 0) {
-      this.saveTutorialStep(TutorialStep.EARN_FOR_SECOND_STATION);
+      if (cash >= 3500) {
+        this.isDismissed = false;
+        this.saveTutorialStep(TutorialStep.BUY_SECOND_STATION);
+      } else {
+        this.saveTutorialStep(TutorialStep.EARN_FOR_SECOND_STATION);
+      }
       this.updateTutorialUI();
     } else if (this.currentStep === TutorialStep.EARN_FOR_SECOND_STATION && cash >= 3500) {
       this.isDismissed = false;

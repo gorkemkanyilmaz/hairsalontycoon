@@ -373,12 +373,8 @@ export class IsometricRenderer {
       this.ctx.save();
       this.ctx.scale(dpr, dpr);
 
-      // Twilight Ambient Backdrop (city sunset sky fading to street level)
-      const bgGradient = this.ctx.createLinearGradient(0, 0, 0, window.innerHeight);
-      bgGradient.addColorStop(0, '#241a3a');
-      bgGradient.addColorStop(0.45, '#1c1430');
-      bgGradient.addColorStop(1, '#0c0714');
-      this.ctx.fillStyle = bgGradient;
+      // Pure Lush Green Grass Backdrop (Zero Black Void!)
+      this.ctx.fillStyle = '#1c3a26';
       this.ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
       // 1. Draw the world environment around the salon (grass, sidewalk, road) for All Branches
@@ -424,10 +420,10 @@ export class IsometricRenderer {
     const state = this.stateStore.getState();
     const branches = state.branches ? state.branches.length : 1;
 
-    const minGX = -8;
-    const maxGX = (branches - 1) * this.BRANCH_SPACING + this.gridWidth + 6;
-    const minGY = -6;
-    const maxGY = 22;
+    const minGX = -35;
+    const maxGX = (branches - 1) * this.BRANCH_SPACING + this.gridWidth + 35;
+    const minGY = -30;
+    const maxGY = 45;
 
     const isSalonInterior = (gx: number, gy: number): boolean => {
       for (let b = 0; b < branches; b++) {
@@ -963,7 +959,8 @@ export class IsometricRenderer {
             cust.avatarColor,
             cust.isWalking,
             cust.walkAnimPhase,
-            this.zoom
+            this.zoom,
+            cust.appliedHairColor
           );
           ctx.drawImage(custSprite, p.x - custSprite.width / 2, p.y - custSprite.height + 12 * this.zoom);
 

@@ -422,10 +422,12 @@ export class SpriteManager {
     avatarColor: string = '#f72585',
     isWalking: boolean = false,
     walkAnimPhase: number = 0,
-    scale: number = 1
+    scale: number = 1,
+    hairColorOverride?: string
   ): HTMLCanvasElement {
     const phaseKey = isWalking ? Math.floor((walkAnimPhase % (Math.PI * 2)) * 5) : 'idle';
-    const key = `female_cust_${avatarColor}_${isWalking}_${phaseKey}_${scale}`;
+    const hairKey = hairColorOverride || 'default';
+    const key = `female_cust_${avatarColor}_${hairKey}_${isWalking}_${phaseKey}_${scale}`;
     if (this.cache.has(key)) return this.cache.get(key)!;
 
     const canvas = document.createElement('canvas');
@@ -484,15 +486,17 @@ export class SpriteManager {
     ctx.fillStyle = '#fdba74';
     ctx.fill();
 
+    const hairColor = hairColorOverride || '#271206';
+
     ctx.beginPath();
     ctx.arc(cx, cy - 76 * scale, 16 * scale, Math.PI * 0.7, Math.PI * 2.3);
-    ctx.fillStyle = '#271206';
+    ctx.fillStyle = hairColor;
     ctx.fill();
 
     ctx.beginPath();
     ctx.roundRect(cx - 17 * scale, cy - 76 * scale, 8 * scale, 28 * scale, 4 * scale);
     ctx.roundRect(cx + 9 * scale, cy - 76 * scale, 8 * scale, 28 * scale, 4 * scale);
-    ctx.fillStyle = '#271206';
+    ctx.fillStyle = hairColor;
     ctx.fill();
 
     this.cache.set(key, canvas);
