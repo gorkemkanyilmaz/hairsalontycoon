@@ -26,11 +26,11 @@ export class IsometricRenderer {
   // 24x18 Luxury Commercial Salon Grid (1.5x Spacious Grid Expansion)
   private gridWidth: number = 24;
   private gridHeight: number = 18;
-  private tileWidth: number = 72;
-  private tileHeight: number = 36;
+  private tileWidth: number = 56;
+  private tileHeight: number = 38;
 
   // Camera Transform & Mobile Responsive Zoom
-  private zoom: number = 0.78;
+  private zoom: number = 0.85;
   private offsetX: number = 0;
   private offsetY: number = 0;
   private isDragging: boolean = false;
@@ -42,7 +42,7 @@ export class IsometricRenderer {
   private touchStartX: number = 0;
   private touchStartY: number = 0;
   private initialPinchDist: number = 0;
-  private initialZoom: number = 0.78;
+  private initialZoom: number = 0.85;
   private touchTapTime: number = 0;
   private touchMoved: boolean = false;
   private touchStartClientX: number = 0;
@@ -50,11 +50,10 @@ export class IsometricRenderer {
 
   private hoveredGridPos: IIsoPoint | null = null;
 
-  // Horizontal tile spacing between salon branches (so 2nd salon walls don't overlap)
-  private readonly BRANCH_SPACING = 30;
+  // Horizontal tile spacing between salon branches (28 tiles shift per branch)
+  private readonly BRANCH_SPACING = 28;
 
   constructor(containerId: string) {
-    // Listen for Branch Switched event to auto-center camera on active salon branch
     this.stateStore = StateStore.getInstance();
     EventBus.getInstance().on(GameEventType.BRANCH_SWITCHED, (branchIdx: number) => {
       this.centerCameraOnBranch(branchIdx);
@@ -87,18 +86,15 @@ export class IsometricRenderer {
     this.canvas.style.width = `${window.innerWidth}px`;
     this.canvas.style.height = `${window.innerHeight}px`;
 
-    // Mobile Responsive Auto-Fit Zoom Adjustment
-    // Fill ~85-90% of screen height & width on iPhone/portrait screens so salon dominates the viewport
-    // with a subtle grass margin while keeping every station perfectly spaced & tap-friendly.
+    // Straight Rectangular Auto-Fit Zoom
     if (window.innerWidth < 600) {
-      const isoWidth = (this.gridWidth + this.gridHeight) * (this.tileWidth / 2);
-      const isoHeight = (this.gridWidth + this.gridHeight) * (this.tileHeight / 2);
-      
-      const zoomForW = (window.innerWidth * 0.94) / isoWidth;
-      const zoomForH = (window.innerHeight * 0.75) / isoHeight;
-      this.zoom = Math.max(0.40, Math.min(0.75, Math.max(zoomForW, zoomForH)));
+      const roomW = this.gridWidth * this.tileWidth;
+      const roomH = this.gridHeight * this.tileHeight;
+      const zoomW = (window.innerWidth * 0.92) / roomW;
+      const zoomH = (window.innerHeight * 0.70) / roomH;
+      this.zoom = Math.max(0.40, Math.min(0.85, Math.min(zoomW, zoomH)));
     } else {
-      this.zoom = 0.78;
+      this.zoom = 0.85;
     }
 
     this.centerCamera();
@@ -106,7 +102,7 @@ export class IsometricRenderer {
 
   public centerCamera(): void {
     if (isNaN(this.zoom) || !isFinite(this.zoom) || this.zoom <= 0) {
-      this.zoom = window.innerWidth < 600 ? 0.45 : 0.78;
+      this.zoom = window.innerWidth < 600 ? 0.50 : 0.85;
     }
 
     const activeBranchIdx = this.stateStore.getState().activeBranchIndex || 0;
@@ -115,18 +111,15 @@ export class IsometricRenderer {
 
   public centerCameraOnBranch(branchIdx: number): void {
     if (isNaN(this.zoom) || !isFinite(this.zoom) || this.zoom <= 0) {
-      this.zoom = window.innerWidth < 600 ? 0.45 : 0.78;
+      this.zoom = window.innerWidth < 600 ? 0.50 : 0.85;
     }
 
     const branchOffsetX = branchIdx * this.BRANCH_SPACING;
-    const centerGridX = (this.gridWidth - 1) / 2 + branchOffsetX;
-    const centerGridY = (this.gridHeight - 1) / 2;
+    const roomCenterX = (branchOffsetX + this.gridWidth / 2) * this.tileWidth * this.zoom;
+    const roomCenterY = (this.gridHeight / 2) * this.tileHeight * this.zoom;
 
-    const isoCenterX = (centerGridX - centerGridY) * (this.tileWidth / 2);
-    const isoCenterY = (centerGridX + centerGridY) * (this.tileHeight / 2);
-
-    this.offsetX = (window.innerWidth / 2) - (isoCenterX * this.zoom);
-    this.offsetY = (window.innerHeight / 2) - (isoCenterY * this.zoom) + 20 * this.zoom;
+    this.offsetX = (window.innerWidth / 2) - roomCenterX;
+    this.offsetY = (window.innerHeight / 2) - roomCenterY + 15 * this.zoom;
     this.render();
   }
 
@@ -146,27 +139,19 @@ export class IsometricRenderer {
 
   private clampCamera(): void {
     if (isNaN(this.zoom) || !isFinite(this.zoom) || this.zoom <= 0) {
-      this.zoom = window.innerWidth < 600 ? 0.42 : 0.78;
+      this.zoom = window.innerWidth < 600 ? 0.50 : 0.85;
     }
     this.zoom = Math.max(0.08, Math.min(2.5, this.zoom));
 
-    const centerGridX = (this.gridWidth - 1) / 2;
-    const centerGridY = (this.gridHeight - 1) / 2;
-
-    const isoCenterX = (centerGridX - centerGridY) * (this.tileWidth / 2);
-    const isoCenterY = (centerGridX + centerGridY) * (this.tileHeight / 2);
-
-    const targetCenterX = (window.innerWidth / 2) - (isoCenterX * this.zoom);
-    const targetCenterY = (window.innerHeight / 2) - (isoCenterY * this.zoom) + 90 * this.zoom;
-
     const branchCount = Math.max(1, this.stateStore.getState().branches ? this.stateStore.getState().branches.length : 1);
-    const branchSpanX = (branchCount - 1) * (this.BRANCH_SPACING * (this.tileWidth / 2) * this.zoom);
+    const maxGridX = branchCount * this.BRANCH_SPACING;
+    const totalWorldWidth = maxGridX * this.tileWidth * this.zoom;
 
-    const minOffsetX = targetCenterX - branchSpanX - 2000;
-    const maxOffsetX = targetCenterX + 2000;
+    const minOffsetX = window.innerWidth - totalWorldWidth - 500;
+    const maxOffsetX = 500;
 
     this.offsetX = Math.max(minOffsetX, Math.min(maxOffsetX, this.offsetX));
-    this.offsetY = Math.max(targetCenterY - 1500, Math.min(targetCenterY + 1500, this.offsetY));
+    this.offsetY = Math.max(-1000, Math.min(window.innerHeight + 500, this.offsetY));
   }
 
   public zoomIn(): void {
@@ -178,12 +163,9 @@ export class IsometricRenderer {
   }
 
   public gridToScreen(gx: number, gy: number): IIsoPoint {
-    const isoX = (gx - gy) * (this.tileWidth / 2);
-    const isoY = (gx + gy) * (this.tileHeight / 2);
-
     return {
-      x: this.offsetX + isoX * this.zoom,
-      y: this.offsetY + isoY * this.zoom
+      x: this.offsetX + gx * this.tileWidth * this.zoom,
+      y: this.offsetY + gy * this.tileHeight * this.zoom
     };
   }
 
@@ -192,22 +174,12 @@ export class IsometricRenderer {
     const x = screenX - rect.left;
     const y = screenY - rect.top;
 
-    const relX = x - this.offsetX;
-    const relY = y - this.offsetY;
-
-    const scaledTileWidth = this.tileWidth * this.zoom;
-    const scaledTileHeight = this.tileHeight * this.zoom;
-
-    const isoX = relX / (scaledTileWidth / 2);
-    const isoY = relY / (scaledTileHeight / 2);
-
-    const gridX = (isoY + isoX) / 2;
-    const gridY = (isoY - isoX) / 2;
+    const gridX = (x - this.offsetX) / (this.tileWidth * this.zoom);
+    const gridY = (y - this.offsetY) / (this.tileHeight * this.zoom);
 
     return { x: gridX, y: gridY };
   }
 
-  // Get customer under screen click point (includes body AND "Saçımı yapın!" speech bubble)
   public getCustomerAtScreenPoint(screenX: number, screenY: number): ICustomerNPC | null {
     const rect = this.canvas.getBoundingClientRect();
     const clickX = screenX - rect.left;
@@ -219,15 +191,14 @@ export class IsometricRenderer {
       const c = customers[i];
       const p = this.gridToScreen(c.posX, c.posY);
 
-      // Customer body center point & speech bubble center point
-      const bodyX = p.x;
-      const bodyY = p.y - 35 * this.zoom;
-      const bubbleY = p.y - 100 * this.zoom;
+      const bodyX = p.x + (this.tileWidth / 2) * this.zoom;
+      const bodyY = p.y + (this.tileHeight / 2) * this.zoom;
+      const bubbleY = p.y - 45 * this.zoom;
 
       const distBody = Math.hypot(clickX - bodyX, clickY - bodyY);
       const distBubble = Math.hypot(clickX - bodyX, clickY - bubbleY);
 
-      const hitRadius = Math.max(55, 75 * this.zoom);
+      const hitRadius = Math.max(50, 65 * this.zoom);
 
       if (distBody <= hitRadius || distBubble <= hitRadius) {
         return c;
@@ -610,44 +581,43 @@ export class IsometricRenderer {
     const state = this.stateStore.getState();
     const isFashionEvent = state.isFashionEventActive;
     const branches = state.branches ? state.branches.length : 1;
+    const canvasW = this.canvas.width;
+    const canvasH = this.canvas.height;
 
     for (let b = 0; b < branches; b++) {
-      const offsetX = b * this.BRANCH_SPACING; // 17 tiles horizontal shift for 2nd branch!
+      const offsetX = b * this.BRANCH_SPACING;
 
       for (let x = 0; x < this.gridWidth; x++) {
         for (let y = 0; y < this.gridHeight; y++) {
           const p = this.gridToScreen(x + offsetX, y);
+
+          // Culling check for high performance
+          if (p.x + 60 * this.zoom < 0 || p.x > canvasW || p.y + 40 * this.zoom < 0 || p.y > canvasH) {
+            continue;
+          }
+
           const isAlt = (x + y) % 2 === 0;
           const tileSprite = spriteMgr.getParquetTileSprite(isAlt, this.zoom);
-          this.ctx.drawImage(tileSprite, p.x - tileSprite.width / 2, p.y);
+          this.ctx.drawImage(tileSprite, p.x, p.y);
 
           // Red Carpet Runway on Tile y === 6 during Fashion Week Gala!
           if (isFashionEvent && x >= 4 && x <= 15 && y === 6) {
-            const hw = (this.tileHeight * this.zoom) / 2;
-            const fw = (this.tileWidth * this.zoom) / 2;
-            this.ctx.beginPath();
-            this.ctx.moveTo(p.x, p.y);
-            this.ctx.lineTo(p.x + fw, p.y + hw);
-            this.ctx.lineTo(p.x, p.y + hw * 2);
-            this.ctx.lineTo(p.x - fw, p.y + hw);
-            this.ctx.closePath();
-
             this.ctx.fillStyle = 'rgba(239, 71, 111, 0.85)';
-            this.ctx.fill();
+            this.ctx.fillRect(p.x, p.y, this.tileWidth * this.zoom, this.tileHeight * this.zoom);
             this.ctx.strokeStyle = '#fbbf24';
             this.ctx.lineWidth = 2 * this.zoom;
-            this.ctx.stroke();
+            this.ctx.strokeRect(p.x, p.y, this.tileWidth * this.zoom, this.tileHeight * this.zoom);
           }
         }
       }
 
-      // Draw Branch Banner Marquee for Branch #2
-      if (b >= 1) {
-        const bp = this.gridToScreen(8 + offsetX, 1);
+      // Draw Branch Banner Marquee for Branch #2, #3, #4...
+      const bp = this.gridToScreen(12 + offsetX, 0);
+      if (bp.x > -200 && bp.x < canvasW + 200) {
         this.ctx.fillStyle = '#fbbf24';
         this.ctx.font = `bold ${Math.round(14 * this.zoom)}px Outfit, sans-serif`;
         this.ctx.textAlign = 'center';
-        this.ctx.fillText(`🏰 Nişantaşı Lüks Şube #${b + 1} (+%${b * 50} Kazanç)`, bp.x, bp.y - 120 * this.zoom);
+        this.ctx.fillText(`🏰 Şube #${b + 1}: ${state.branches[b]?.salonName || 'Lüks Kuaför'} (+%${b * 50} Kazanç)`, bp.x, bp.y - 120 * this.zoom);
       }
     }
   }
@@ -655,71 +625,77 @@ export class IsometricRenderer {
   private drawWalls(): void {
     const state = this.stateStore.getState();
     const branches = state.branches ? state.branches.length : 1;
-    const wallHeight = 145 * this.zoom;
+    const wallHeight = 110 * this.zoom;
 
     for (let b = 0; b < branches; b++) {
       const offsetX = b * this.BRANCH_SPACING;
 
       const pTopLeft = this.gridToScreen(0 + offsetX, 0);
+      const pTopRight = this.gridToScreen(this.gridWidth + offsetX, 0);
       const pBottomLeft = this.gridToScreen(0 + offsetX, this.gridHeight);
+      const pBottomRight = this.gridToScreen(this.gridWidth + offsetX, this.gridHeight);
 
-      // Left Wall
+      // 1. Long Back Wall (100% Horizontal & Parallel to Header Line)
       this.ctx.beginPath();
       this.ctx.moveTo(pTopLeft.x, pTopLeft.y);
       this.ctx.lineTo(pTopLeft.x, pTopLeft.y - wallHeight);
-      this.ctx.lineTo(pBottomLeft.x, pBottomLeft.y - wallHeight);
+      this.ctx.lineTo(pTopRight.x, pTopRight.y - wallHeight);
+      this.ctx.lineTo(pTopRight.x, pTopRight.y);
+      this.ctx.closePath();
+
+      const wallGradBack = this.ctx.createLinearGradient(pTopLeft.x, pTopLeft.y - wallHeight, pTopRight.x, pTopRight.y);
+      wallGradBack.addColorStop(0, '#581c87');
+      wallGradBack.addColorStop(0.5, '#3b0764');
+      wallGradBack.addColorStop(1, '#2e1065');
+      this.ctx.fillStyle = wallGradBack;
+      this.ctx.fill();
+      this.ctx.strokeStyle = '#f472b6';
+      this.ctx.lineWidth = 2 * this.zoom;
+      this.ctx.stroke();
+
+      // 2. Left Side Wall
+      this.ctx.beginPath();
+      this.ctx.moveTo(pTopLeft.x, pTopLeft.y);
+      this.ctx.lineTo(pTopLeft.x - 14 * this.zoom, pTopLeft.y - wallHeight);
+      this.ctx.lineTo(pBottomLeft.x - 14 * this.zoom, pBottomLeft.y - wallHeight);
       this.ctx.lineTo(pBottomLeft.x, pBottomLeft.y);
       this.ctx.closePath();
 
       const wallGradLeft = this.ctx.createLinearGradient(pTopLeft.x, pTopLeft.y - wallHeight, pBottomLeft.x, pBottomLeft.y);
-      wallGradLeft.addColorStop(0, '#581c87');
-      wallGradLeft.addColorStop(0.6, '#3b0764');
+      wallGradLeft.addColorStop(0, '#4c1d95');
       wallGradLeft.addColorStop(1, '#2e1065');
       this.ctx.fillStyle = wallGradLeft;
       this.ctx.fill();
       this.ctx.strokeStyle = '#f472b6';
-      this.ctx.lineWidth = 2;
+      this.ctx.lineWidth = 2 * this.zoom;
       this.ctx.stroke();
 
-      const pBottomRight = this.gridToScreen(this.gridWidth + offsetX, 0);
-
-      // Right Wall
+      // 3. Right Side Wall
       this.ctx.beginPath();
-      this.ctx.moveTo(pTopLeft.x, pTopLeft.y);
-      this.ctx.lineTo(pTopLeft.x, pTopLeft.y - wallHeight);
-      this.ctx.lineTo(pBottomRight.x, pBottomRight.y - wallHeight);
+      this.ctx.moveTo(pTopRight.x, pTopRight.y);
+      this.ctx.lineTo(pTopRight.x + 14 * this.zoom, pTopRight.y - wallHeight);
+      this.ctx.lineTo(pBottomRight.x + 14 * this.zoom, pBottomRight.y - wallHeight);
       this.ctx.lineTo(pBottomRight.x, pBottomRight.y);
       this.ctx.closePath();
 
-      const wallGradRight = this.ctx.createLinearGradient(pTopLeft.x, pTopLeft.y - wallHeight, pBottomRight.x, pBottomRight.y);
-      wallGradRight.addColorStop(0, '#6b21a8');
-      wallGradRight.addColorStop(0.6, '#4c1d95');
-      wallGradRight.addColorStop(1, '#3b0764');
-      this.ctx.fillStyle = wallGradRight;
+      this.ctx.fillStyle = wallGradLeft;
       this.ctx.fill();
       this.ctx.strokeStyle = '#f472b6';
-      this.ctx.lineWidth = 2;
+      this.ctx.lineWidth = 2 * this.zoom;
       this.ctx.stroke();
 
-      // Gold Moldings
+      // Gold Moldings along Back Wall Top Line
       this.ctx.beginPath();
       this.ctx.moveTo(pTopLeft.x, pTopLeft.y - wallHeight);
-      this.ctx.lineTo(pBottomLeft.x, pBottomLeft.y - wallHeight);
+      this.ctx.lineTo(pTopRight.x, pTopRight.y - wallHeight);
       this.ctx.strokeStyle = '#fbbf24';
       this.ctx.lineWidth = 3 * this.zoom;
       this.ctx.stroke();
 
-      this.ctx.beginPath();
-      this.ctx.moveTo(pTopLeft.x, pTopLeft.y - wallHeight);
-      this.ctx.lineTo(pBottomRight.x, pBottomRight.y - wallHeight);
-      this.ctx.strokeStyle = '#fbbf24';
-      this.ctx.lineWidth = 3 * this.zoom;
-      this.ctx.stroke();
-
-      // Paintings on Wall
-      this.drawRealisticWallPainting(0 + offsetX, 4, 'LEFT_WALL');
-      this.drawRealisticWallPainting(3 + offsetX, 0, 'RIGHT_WALL_1');
-      this.drawRealisticWallPainting(9 + offsetX, 0, 'RIGHT_WALL_2');
+      // Paintings on Back Wall
+      this.drawRealisticWallPainting(4 + offsetX, 0, 'RIGHT_WALL_1');
+      this.drawRealisticWallPainting(12 + offsetX, 0, 'RIGHT_WALL_2');
+      this.drawRealisticWallPainting(20 + offsetX, 0, 'LEFT_WALL');
     }
   }
 

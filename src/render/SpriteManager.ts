@@ -13,27 +13,17 @@ export class SpriteManager {
     return SpriteManager.instance;
   }
 
-  // 1. Soft Pastel Cream & Blush Pink Marble Floor Tile
+  // 1. Soft Pastel Cream & Blush Pink Rectangular Tile
   public getParquetTileSprite(isAlternate: boolean, scale: number = 1): HTMLCanvasElement {
-    const key = `pastel_marble_tile_${isAlternate}_${scale}`;
+    const key = `pastel_rect_tile_${isAlternate}_${scale.toFixed(2)}`;
     if (this.cache.has(key)) return this.cache.get(key)!;
 
-    const tw = Math.round(72 * scale);
-    const th = Math.round(36 * scale);
+    const tw = Math.max(2, Math.round(56 * scale));
+    const th = Math.max(2, Math.round(38 * scale));
     const canvas = document.createElement('canvas');
     canvas.width = tw;
-    canvas.height = th + 12 * scale;
+    canvas.height = th;
     const ctx = canvas.getContext('2d')!;
-
-    const cx = tw / 2;
-    const cy = th / 2;
-
-    ctx.beginPath();
-    ctx.moveTo(cx, 0);
-    ctx.lineTo(tw, cy);
-    ctx.lineTo(cx, th);
-    ctx.lineTo(0, cy);
-    ctx.closePath();
 
     const tileGrad = ctx.createLinearGradient(0, 0, tw, th);
     if (isAlternate) {
@@ -46,34 +36,11 @@ export class SpriteManager {
       tileGrad.addColorStop(1, '#f472b6');
     }
     ctx.fillStyle = tileGrad;
-    ctx.fill();
+    ctx.fillRect(0, 0, tw, th);
 
-    // Subtle Pastel Veins
-    ctx.beginPath();
-    ctx.moveTo(cx - 18 * scale, cy - 6 * scale);
-    ctx.lineTo(cx - 2 * scale, cy + 8 * scale);
-    ctx.lineTo(cx + 20 * scale, cy - 2 * scale);
-    ctx.strokeStyle = 'rgba(244, 114, 182, 0.25)';
-    ctx.lineWidth = 1.2 * scale;
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(0, cy);
-    ctx.lineTo(cx, th);
-    ctx.lineTo(cx, th + 8 * scale);
-    ctx.lineTo(0, cy + 8 * scale);
-    ctx.closePath();
-    ctx.fillStyle = isAlternate ? '#fbcfe8' : '#f472b6';
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.moveTo(cx, th);
-    ctx.lineTo(tw, cy);
-    ctx.lineTo(tw, cy + 8 * scale);
-    ctx.lineTo(cx, th + 8 * scale);
-    ctx.closePath();
-    ctx.fillStyle = isAlternate ? '#f472b6' : '#e879f9';
-    ctx.fill();
+    ctx.strokeStyle = 'rgba(244, 114, 182, 0.3)';
+    ctx.lineWidth = Math.max(1, 1 * scale);
+    ctx.strokeRect(0, 0, tw, th);
 
     this.cache.set(key, canvas);
     return canvas;
