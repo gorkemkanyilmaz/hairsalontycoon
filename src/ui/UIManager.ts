@@ -212,39 +212,44 @@ export class UIManager {
     const branch = this.stateStore.getActiveBranch();
     const isSofa = kind === 'sofa';
     const cost = isSofa ? 800 : 2000;
+    const diamondCost = Math.max(1, Math.ceil(cost / 100));
     const title = isSofa ? '🛋️ Bekleme Koltuğu Satın Al' : '✂️ 2. Kuaför İstasyonu Satın Al';
     const desc = isSofa
       ? `Salona ${slotIndex + 1}. Bekleme Koltuğunu ekleyin! Daha fazla müşteri sırada bekleyebilir.`
       : `Salona 2. Kuaför Aynasını ve Koltuğunu ekleyin! İkinci bir kuaför çalıştırmanıza olanak tanır.`;
 
-    const canAfford = state.cash >= cost;
+    const canAffordCash = state.cash >= cost;
+    const canAffordDiamond = state.diamonds >= diamondCost;
 
     this.openModal(title, `
-      <div style="padding: 16px; color: white; display: flex; flex-direction: column; gap: 16px; text-align: center;">
+      <div style="padding: 16px; color: white; display: flex; flex-direction: column; gap: 16px; text-align: center; font-family: 'Outfit', sans-serif;">
         <div style="font-size: 54px;">${isSofa ? '🛋️' : '✂️'}</div>
         <h3 style="margin: 0; color: #fbbf24;">${title}</h3>
         <p style="margin: 0; font-size: 13px; color: #cbd5e1;">${desc}</p>
-        <div style="background: rgba(255,255,255,0.06); border: 1px solid #fbbf24; border-radius: 14px; padding: 12px; font-weight: 800; color: #06d6a0;">
-          Fiyat: ₺${cost}
+        <div style="background: rgba(255,255,255,0.06); border: 1px solid #fbbf24; border-radius: 14px; padding: 12px; font-weight: 800; color: #06d6a0; display: flex; justify-content: space-around; align-items: center;">
+          <span>Fiyat: ₺${cost}</span>
+          <span style="color: #cbd5e1; font-size: 12px;">VEYA</span>
+          <span style="color: #38bdf8;">⚡ ${diamondCost} 💎 Elmas</span>
         </div>
-        <button class="btn-upgrade ${canAfford ? '' : 'disabled'}" id="btn-confirm-buy-furniture">
-          ${canAfford ? `₺${cost} İLE SATIN AL` : `Yetersiz Bakiye (₺${cost})`}
-        </button>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" id="btn-confirm-buy-furniture-cash" style="flex: 1;">
+            ₺${cost} İLE AL
+          </button>
+          <button class="btn-upgrade ${canAffordDiamond ? '' : 'disabled'}" id="btn-confirm-buy-furniture-diamond" style="flex: 1; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+            ⚡ ${diamondCost} 💎 İLE AL
+          </button>
+        </div>
       </div>
     `);
 
-    document.getElementById('btn-confirm-buy-furniture')?.addEventListener('click', () => {
-      if (canAfford) {
-        this.stateStore.deductCash(cost);
-        if (isSofa) {
-          branch.waitingSofasCount = Math.max(branch.waitingSofasCount || 1, slotIndex + 1);
-        } else {
-          branch.barberStationsCount = 2;
-          branch.chairsCount = 2;
-        }
-        this.stateStore.saveState();
-        this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `✨ TEBRİKLER! ${isSofa ? 'YENİ BEKLEME KOLTUĞU' : '2. KUAFÖR İSTASYONU'} KURULDU!`);
-        this.eventBus.emit(GameEventType.STATE_CHANGED, state);
+    document.getElementById('btn-confirm-buy-furniture-cash')?.addEventListener('click', () => {
+      if (isSofa ? this.stateStore.buyWaitingSofa() : this.stateStore.buyBarberStation()) {
+        this.closeModal();
+      }
+    });
+
+    document.getElementById('btn-confirm-buy-furniture-diamond')?.addEventListener('click', () => {
+      if (isSofa ? this.stateStore.buyWaitingSofaWithDiamonds() : this.stateStore.buyBarberStationWithDiamonds()) {
         this.closeModal();
       }
     });
@@ -307,11 +312,14 @@ export class UIManager {
 
   public openProductsModal(): void {
     const state = this.stateStore.getState();
-    const canAfford50 = state.cash >= 150;
-    const canAfford100 = state.cash >= 250;
+    const canAffordCash50 = state.cash >= 150;
+    const canAffordDiamond50 = state.diamonds >= 2;
+
+    const canAffordCash100 = state.cash >= 250;
+    const canAffordDiamond100 = state.diamonds >= 3;
 
     this.openModal('📦 Stok Deposu & Lojistik Kurye', `
-      <div style="padding: 16px; color: white; display: flex; flex-direction: column; gap: 16px;">
+      <div style="padding: 16px; color: white; display: flex; flex-direction: column; gap: 16px; font-family: 'Outfit', sans-serif;">
         <div style="background: rgba(247, 37, 133, 0.15); border: 2px solid #f72585; border-radius: 18px; padding: 18px; display: flex; align-items: center; justify-content: space-between;">
           <div style="display: flex; align-items: center; gap: 14px;">
             <span style="font-size: 42px;">📦</span>
@@ -325,16 +333,26 @@ export class UIManager {
           </span>
         </div>
 
-        <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
           <h4 style="margin: 0; color: #fbbf24; font-size: 14px;">🚚 HIZLI KURYE SİPARİŞİ VER:</h4>
           
-          <button class="btn-upgrade ${canAfford50 ? '' : 'disabled'}" id="btn-restock-50">
-            📦 +50 Stok Sipariş Et (₺150)
-          </button>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-upgrade ${canAffordCash50 ? '' : 'disabled'}" id="btn-restock-50" style="flex: 1;">
+              📦 +50 Stok (₺150)
+            </button>
+            <button class="btn-upgrade ${canAffordDiamond50 ? '' : 'disabled'}" id="btn-restock-50-diamond" style="flex: 1; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+              ⚡ +50 Stok (2 💎)
+            </button>
+          </div>
 
-          <button class="btn-upgrade ${canAfford100 ? '' : 'disabled'}" id="btn-restock-100">
-            📦 +100 Süper Stok Sipariş Et (₺250)
-          </button>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-upgrade ${canAffordCash100 ? '' : 'disabled'}" id="btn-restock-100" style="flex: 1;">
+              📦 +100 Süper Stok (₺250)
+            </button>
+            <button class="btn-upgrade ${canAffordDiamond100 ? '' : 'disabled'}" id="btn-restock-100-diamond" style="flex: 1; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+              ⚡ +100 Süper Stok (3 💎)
+            </button>
+          </div>
         </div>
       </div>
     `);
@@ -345,8 +363,20 @@ export class UIManager {
       }
     });
 
+    document.getElementById('btn-restock-50-diamond')?.addEventListener('click', () => {
+      if (this.stateStore.orderStockRestockWithDiamonds(50, 2)) {
+        this.openProductsModal();
+      }
+    });
+
     document.getElementById('btn-restock-100')?.addEventListener('click', () => {
       if (this.stateStore.orderStockRestock(100, 250)) {
+        this.openProductsModal();
+      }
+    });
+
+    document.getElementById('btn-restock-100-diamond')?.addEventListener('click', () => {
+      if (this.stateStore.orderStockRestockWithDiamonds(100, 3)) {
         this.openProductsModal();
       }
     });
@@ -454,7 +484,9 @@ export class UIManager {
     const nextBranchName = BRANCH_NAMES[nextBranchIdx] || `Lüks Şube #${nextBranchIdx + 1}`;
     const baseCost = 10000;
     const nextCost = Math.floor(baseCost * Math.pow(2.2, nextBranchIdx - 1));
-    const canAffordFranchise = state.cash >= nextCost;
+    const nextDiamondCost = Math.max(1, Math.ceil(nextCost / 100));
+    const canAffordFranchiseCash = state.cash >= nextCost;
+    const canAffordFranchiseDiamond = state.diamonds >= nextDiamondCost;
 
     const activeAd = this.stateStore.activeSocialAdPackage;
     const isAdActive = activeAd && Date.now() < activeAd.endsTimestamp;
@@ -489,9 +521,14 @@ export class UIManager {
     });
 
     branchListHtml += `
-      <button class="btn-upgrade ${canAffordFranchise ? '' : 'disabled'}" id="btn-open-franchise" style="margin-top: 8px;">
-        🏰 ₺${nextCost.toLocaleString()} İLE ${nextBranchName.toUpperCase()} AÇ (+1 SAAT İNŞAAT)
-      </button>
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button class="btn-upgrade ${canAffordFranchiseCash ? '' : 'disabled'}" id="btn-open-franchise" style="flex: 1; font-size: 11px;">
+          🏰 ₺${nextCost.toLocaleString()} İLE AÇ
+        </button>
+        <button class="btn-upgrade ${canAffordFranchiseDiamond ? '' : 'disabled'}" id="btn-open-franchise-diamond" style="flex: 1; font-size: 11px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+          ⚡ ${nextDiamondCost} 💎 İLE AÇ
+        </button>
+      </div>
     </div>`;
 
     this.openModal('📢 Reklam Paketleri & 🏰 Şube İmparatorluğu', `
@@ -512,18 +549,30 @@ export class UIManager {
                   ⏱️ REKLAM KAMPANYASI AKTİF (${activeAd!.type} PAKET) — KALAN: ${remainingAdSec}s
                  </div>`
               : `<div style="display: flex; flex-direction: column; gap: 8px;">
-                  <button class="btn-upgrade ${state.cash >= 500 ? '' : 'disabled'}" id="btn-ad-bronze" style="font-size: 12px; padding: 10px; text-align: left; display: flex; justify-content: space-between;">
-                    <span>🌱 Bronz Paket (+50% Müşteri, %25 VIP)</span>
-                    <span>₺500 / 60s</span>
-                  </button>
-                  <button class="btn-upgrade ${state.cash >= 1000 ? '' : 'disabled'}" id="btn-ad-silver" style="font-size: 12px; padding: 10px; text-align: left; display: flex; justify-content: space-between; background: linear-gradient(135deg, #a855f7, #7e22ce);">
-                    <span>⭐ Gümüş Paket (+100% Müşteri, %45 VIP)</span>
-                    <span>₺1,000 / 90s</span>
-                  </button>
-                  <button class="btn-upgrade ${state.cash >= 2000 ? '' : 'disabled'}" id="btn-ad-gold" style="font-size: 12px; padding: 10px; text-align: left; display: flex; justify-content: space-between; background: linear-gradient(135deg, #fbbf24, #d97706); color: #1e1b4b;">
-                    <span>👑 Altın VIP Paket (+200% Mega Akın, %75 VIP)</span>
-                    <span>₺2,000 / 120s</span>
-                  </button>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn-upgrade ${state.cash >= 500 ? '' : 'disabled'}" id="btn-ad-bronze" style="flex: 1; font-size: 11px; padding: 8px; text-align: left;">
+                      🌱 Bronz (₺500)
+                    </button>
+                    <button class="btn-upgrade ${state.diamonds >= 5 ? '' : 'disabled'}" id="btn-ad-bronze-diamond" style="font-size: 11px; padding: 8px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+                      ⚡ 5 💎
+                    </button>
+                  </div>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn-upgrade ${state.cash >= 1000 ? '' : 'disabled'}" id="btn-ad-silver" style="flex: 1; font-size: 11px; padding: 8px; text-align: left; background: linear-gradient(135deg, #a855f7, #7e22ce);">
+                      ⭐ Gümüş (₺1,000)
+                    </button>
+                    <button class="btn-upgrade ${state.diamonds >= 10 ? '' : 'disabled'}" id="btn-ad-silver-diamond" style="font-size: 11px; padding: 8px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+                      ⚡ 10 💎
+                    </button>
+                  </div>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn-upgrade ${state.cash >= 2000 ? '' : 'disabled'}" id="btn-ad-gold" style="flex: 1; font-size: 11px; padding: 8px; text-align: left; background: linear-gradient(135deg, #fbbf24, #d97706); color: #1e1b4b;">
+                      👑 Altın VIP (₺2,000)
+                    </button>
+                    <button class="btn-upgrade ${state.diamonds >= 20 ? '' : 'disabled'}" id="btn-ad-gold-diamond" style="font-size: 11px; padding: 8px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+                      ⚡ 20 💎
+                    </button>
+                  </div>
                  </div>`
           }
         </div>
@@ -541,7 +590,7 @@ export class UIManager {
         <!-- Infinite Salon Branch Expansion -->
         <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(247, 37, 133, 0.2)); border: 2px solid #fbbf24; border-radius: 18px; padding: 16px; text-align: center;">
           <p style="font-size: 32px; margin-bottom: 2px;">🏰</p>
-          <h3 style="margin: 0 0 4px 0; color: #fbbf24; font-size: 16px; font-weight: 900;">Sonsuz Şube İmparatorluğu</h3>
+          <h3 style="margin: 0 0 4px 0; color: #fbbf24; font-size: 16px; font-weight: 900;">Sonsuz Şube İmparatorluğu (${nextBranchName})</h3>
           <p style="margin: 0 0 10px 0; font-size: 12px; color: #fbcfe8;">Mevcut Şubeler: <strong>${branchCount} Şube</strong> | Prestij: <strong style="color: #06d6a0;">+${Math.round((this.stateStore.getActiveBranch().prestigeMultiplier - 1) * 100)}% Kazanç</strong></p>
           ${branchListHtml}
         </div>
@@ -551,11 +600,22 @@ export class UIManager {
     document.getElementById('btn-ad-bronze')?.addEventListener('click', () => {
       if (this.stateStore.startSocialMediaAdPackage('BRONZE')) this.openFranchiseModal();
     });
+    document.getElementById('btn-ad-bronze-diamond')?.addEventListener('click', () => {
+      if (this.stateStore.startSocialMediaAdPackageWithDiamonds('BRONZE')) this.openFranchiseModal();
+    });
+
     document.getElementById('btn-ad-silver')?.addEventListener('click', () => {
       if (this.stateStore.startSocialMediaAdPackage('SILVER')) this.openFranchiseModal();
     });
+    document.getElementById('btn-ad-silver-diamond')?.addEventListener('click', () => {
+      if (this.stateStore.startSocialMediaAdPackageWithDiamonds('SILVER')) this.openFranchiseModal();
+    });
+
     document.getElementById('btn-ad-gold')?.addEventListener('click', () => {
       if (this.stateStore.startSocialMediaAdPackage('GOLD')) this.openFranchiseModal();
+    });
+    document.getElementById('btn-ad-gold-diamond')?.addEventListener('click', () => {
+      if (this.stateStore.startSocialMediaAdPackageWithDiamonds('GOLD')) this.openFranchiseModal();
     });
 
     document.getElementById('btn-start-fashion')?.addEventListener('click', () => {
@@ -565,6 +625,12 @@ export class UIManager {
 
     document.getElementById('btn-open-franchise')?.addEventListener('click', () => {
       if (this.stateStore.openNewFranchiseBranch()) {
+        this.openFranchiseModal();
+      }
+    });
+
+    document.getElementById('btn-open-franchise-diamond')?.addEventListener('click', () => {
+      if (this.stateStore.openNewFranchiseBranchWithDiamonds()) {
         this.openFranchiseModal();
       }
     });
@@ -589,7 +655,8 @@ export class UIManager {
     // 2nd Barber Station Upgrade Card
     const stationsCount = activeBranch.barberStationsCount || 1;
     const isStation2Unlocked = stationsCount >= 2;
-    const canAffordStation2 = state.cash >= 2000;
+    const canAffordStation2Cash = state.cash >= 2000;
+    const canAffordStation2Diamond = state.diamonds >= 20;
 
     html += `
       <div class="upgrade-card ${isStation2Unlocked ? 'maxed' : ''}">
@@ -602,9 +669,14 @@ export class UIManager {
           ${
             isStation2Unlocked
               ? `<button class="btn-upgrade max" disabled>AÇIK</button>`
-              : `<button class="btn-upgrade ${canAffordStation2 ? '' : 'disabled'}" id="btn-buy-station-2-upgrade">
-                  ₺2,000 Satın Al
-                 </button>`
+              : `<div style="display: flex; flex-direction: column; gap: 4px;">
+                  <button class="btn-upgrade ${canAffordStation2Cash ? '' : 'disabled'}" id="btn-buy-station-2-upgrade" style="font-size: 11px; padding: 6px 10px;">
+                    ₺2,000 Al
+                  </button>
+                  <button class="btn-upgrade ${canAffordStation2Diamond ? '' : 'disabled'}" id="btn-buy-station-2-upgrade-diamond" style="font-size: 11px; padding: 6px 10px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+                    ⚡ 20 💎 Al
+                  </button>
+                 </div>`
           }
         </div>
       </div>
@@ -613,6 +685,7 @@ export class UIManager {
     upgrades.forEach((u: IUpgradeNode) => {
       const isMax = u.level >= u.maxLevel;
       const currentCost = Math.floor(u.baseCost * Math.pow(u.costMultiplier, u.level));
+      const diamondCost = Math.max(1, Math.ceil(currentCost / 100));
 
       // Prerequisite check
       let prereqFailed = false;
@@ -623,7 +696,8 @@ export class UIManager {
         }
       }
 
-      const canAfford = state.cash >= currentCost && !prereqFailed;
+      const canAffordCash = state.cash >= currentCost && !prereqFailed;
+      const canAffordDiamond = state.diamonds >= diamondCost && !prereqFailed;
 
       html += `
         <div class="upgrade-card ${isMax ? 'maxed' : ''} ${prereqFailed ? 'prereq-failed' : ''}">
@@ -637,9 +711,14 @@ export class UIManager {
             ${
               isMax
                 ? `<button class="btn-upgrade max" disabled>MAX</button>`
-                : `<button class="btn-upgrade ${canAfford ? '' : 'disabled'}" data-id="${u.id}">
-                    ₺${currentCost} Satın Al
-                   </button>`
+                : `<div style="display: flex; flex-direction: column; gap: 4px;">
+                    <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" data-id="${u.id}" style="font-size: 11px; padding: 6px 10px;">
+                      ₺${currentCost.toLocaleString()} Al
+                    </button>
+                    <button class="btn-upgrade ${canAffordDiamond ? '' : 'disabled'}" data-id-diamond="${u.id}" style="font-size: 11px; padding: 6px 10px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+                      ⚡ ${diamondCost} 💎 Al
+                    </button>
+                   </div>`
             }
           </div>
         </div>
@@ -654,12 +733,26 @@ export class UIManager {
         this.renderUpgradesList();
       }
     });
+    document.getElementById('btn-buy-station-2-upgrade-diamond')?.addEventListener('click', () => {
+      if (this.stateStore.buyBarberStationWithDiamonds()) {
+        this.renderUpgradesList();
+      }
+    });
 
-    this.modalBody.querySelectorAll('.btn-upgrade:not(.max):not(.disabled)').forEach((btn) => {
+    this.modalBody.querySelectorAll('[data-id]').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
-        if (id) {
-          this.stateStore.purchaseUpgrade(id);
+        if (id && this.stateStore.purchaseUpgrade(id)) {
+          this.renderUpgradesList();
+        }
+      });
+    });
+
+    this.modalBody.querySelectorAll('[data-id-diamond]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const id = (e.currentTarget as HTMLElement).getAttribute('data-id-diamond');
+        if (id && this.stateStore.purchaseUpgradeWithDiamonds(id)) {
+          this.renderUpgradesList();
         }
       });
     });
@@ -684,8 +777,9 @@ export class UIManager {
       employees.forEach((emp) => {
         const isTraining = emp.trainingEndsTimestamp && emp.trainingEndsTimestamp > Date.now();
         const remainingSec = isTraining ? Math.max(1, Math.ceil((emp.trainingEndsTimestamp! - Date.now()) / 1000)) : 0;
-        const cost = emp.level * 250;
-        
+        const costCash = emp.level * 250;
+        const costDiamond = Math.max(1, Math.ceil(costCash / 100));
+
         let prereqFailed = false;
         let prereqMsg = '';
         if (emp.level >= 5) {
@@ -704,10 +798,11 @@ export class UIManager {
           }
         }
 
-        const canAffordUpgrade = state.cash >= cost && !prereqFailed;
+        const canAffordUpgradeCash = state.cash >= costCash && !prereqFailed;
+        const canAffordUpgradeDiamond = state.diamonds >= costDiamond && !prereqFailed;
 
         html += `
-          <div style="background: rgba(255,255,255,0.06); border: 1px solid #f472b6; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="background: rgba(255,255,255,0.06); border: 1px solid #f472b6; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; font-family: 'Outfit', sans-serif;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div style="display: flex; align-items: center; gap: 12px;">
                 <span style="font-size: 32px;">${emp.role === 'RECEPTIONIST' ? '👩‍💼' : '👩‍🎨'}</span>
@@ -731,9 +826,14 @@ export class UIManager {
                   ? `<button class="btn-upgrade" id="btn-speedup-${emp.id}" style="font-size: 11px; padding: 6px 12px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
                       ⚡ 10 💎 Elmas ile Hızlı Bitir
                      </button>`
-                  : `<button class="btn-upgrade ${canAffordUpgrade ? '' : 'disabled'}" id="btn-lvl-${emp.id}" style="font-size: 11px; padding: 6px 12px;">
-                      🎓 Seviye ${emp.level + 1}'e Eğit (₺${cost})
-                     </button>`
+                  : `<div style="display: flex; gap: 6px;">
+                      <button class="btn-upgrade ${canAffordUpgradeCash ? '' : 'disabled'}" id="btn-lvl-${emp.id}" style="font-size: 11px; padding: 6px 12px;">
+                        🎓 Seviye ${emp.level + 1} (₺${costCash})
+                      </button>
+                      <button class="btn-upgrade ${canAffordUpgradeDiamond ? '' : 'disabled'}" id="btn-lvl-diamond-${emp.id}" style="font-size: 11px; padding: 6px 12px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+                        ⚡ ${costDiamond} 💎 ile Eğit
+                      </button>
+                     </div>`
               }
             </div>
           </div>
@@ -748,9 +848,10 @@ export class UIManager {
     const hasReceptionist = employees.some((e) => e.role === 'RECEPTIONIST');
     const stationsCount = Math.max(activeBranch.barberStationsCount || 1, activeBranch.chairsCount || 1);
 
-    // 1) Cansu A. - Junior Stylist for Chair #1 — ₺2,000 (Chair #1 active by default)
+    // 1) Cansu A. - Junior Stylist for Chair #1 — ₺2,000 (20 💎)
     if (!hasStylist1) {
-      const canAfford = state.cash >= 2000;
+      const canAffordCash = state.cash >= 2000;
+      const canAffordDiamond = state.diamonds >= 20;
       html += `
         <div style="background: linear-gradient(135deg, rgba(6, 214, 160, 0.18), rgba(247, 37, 133, 0.15)); border: 2px solid #06d6a0; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
@@ -758,35 +859,47 @@ export class UIManager {
               <h4 style="margin: 0 0 4px 0; color: #06d6a0;">👩‍🎨 Cansu A. (1. Kuaför — Koltuk #1)</h4>
               <p style="margin: 0; font-size: 12px; color: #cbd5e1;">1. kuaför koltuğundaki (7, 4) müşterilerin saçını otomatik yapar.</p>
             </div>
-            <button class="btn-upgrade ${canAfford ? '' : 'disabled'}" id="btn-hire-stylist-1" style="white-space: nowrap;">
-              ₺2,000 İşe Al
-            </button>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" id="btn-hire-stylist-1" style="white-space: nowrap; font-size: 11px; padding: 6px 10px;">
+                ₺2,000 İşe Al
+              </button>
+              <button class="btn-upgrade ${canAffordDiamond ? '' : 'disabled'}" id="btn-hire-stylist-1-diamond" style="white-space: nowrap; font-size: 11px; padding: 6px 10px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+                ⚡ 20 💎 İşe Al
+              </button>
+            </div>
           </div>
         </div>
       `;
     }
 
-    // 2) Pelin K. - Receptionist (auto cashier) — ₺2,500
+    // 2) Pelin K. - Receptionist (auto cashier) — ₺2,500 (25 💎)
     if (!hasReceptionist) {
-      const canAfford = state.cash >= 2500;
+      const canAffordCash = state.cash >= 2500;
+      const canAffordDiamond = state.diamonds >= 25;
       html += `
         <div style="background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(247, 37, 133, 0.15)); border: 2px solid #38bdf8; border-radius: 16px; padding: 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
           <div>
             <h4 style="margin: 0 0 4px 0; color: #38bdf8;">👩‍💼 Pelin K. (Otomatik Kasiyer)</h4>
             <p style="margin: 0; font-size: 12px; color: #cbd5e1;">Kasada bekleyen müşterilerin ödemesini otomatik tahsil eder. Sabır krizlerini önler!</p>
           </div>
-          <button class="btn-upgrade ${canAfford ? '' : 'disabled'}" id="btn-hire-receptionist" style="white-space: nowrap;">
-            ₺2,500 İşe Al
-          </button>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" id="btn-hire-receptionist" style="white-space: nowrap; font-size: 11px; padding: 6px 10px;">
+              ₺2,500 İşe Al
+            </button>
+            <button class="btn-upgrade ${canAffordDiamond ? '' : 'disabled'}" id="btn-hire-receptionist-diamond" style="white-space: nowrap; font-size: 11px; padding: 6px 10px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+              ⚡ 25 💎 İşe Al
+            </button>
+          </div>
         </div>
       `;
     }
 
-    // 3) Selin K. - 2nd Stylist for Chair #2 — ₺4,500, prerequisite: 2. Kuaför İstasyonu (₺3,500)
+    // 3) Selin K. - 2nd Stylist for Chair #2 — ₺4,500 (45 💎), prerequisite: 2. Kuaför İstasyonu (₺3,500)
     if (!hasStylist2) {
       const stationOk = stationsCount >= 2;
-      const canAfford = state.cash >= 4500 && stationOk;
-      const prereqNote = !stationOk ? '⚠️ Ön Koşul: Önce 2. Kuaför İstasyonu (₺3,500) haritadan satın alınmalıdır!' : '';
+      const canAffordCash = state.cash >= 4500 && stationOk;
+      const canAffordDiamond = state.diamonds >= 45 && stationOk;
+      const prereqNote = !stationOk ? '⚠️ Ön Koşul: Önce 2. Kuaför İstasyonu haritadan satın alınmalıdır!' : '';
 
       html += `
         <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(247, 37, 133, 0.15)); border: 2px solid ${stationOk ? '#fbbf24' : '#ef476f'}; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
@@ -795,20 +908,26 @@ export class UIManager {
               <h4 style="margin: 0 0 4px 0; color: #fbbf24;">👩‍🎨 Selin K. (2. Kuaför — Koltuk #2)</h4>
               <p style="margin: 0; font-size: 12px; color: #cbd5e1;">2. kuaför koltuğundaki (12, 4) müşterilerin saçını otomatik yapar.</p>
             </div>
-            <button class="btn-upgrade ${canAfford ? '' : 'disabled'}" id="btn-hire-stylist-2" style="white-space: nowrap;">
-              ₺4,500 İşe Al
-            </button>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" id="btn-hire-stylist-2" style="white-space: nowrap; font-size: 11px; padding: 6px 10px;">
+                ₺4,500 İşe Al
+              </button>
+              <button class="btn-upgrade ${canAffordDiamond ? '' : 'disabled'}" id="btn-hire-stylist-2-diamond" style="white-space: nowrap; font-size: 11px; padding: 6px 10px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+                ⚡ 45 💎 İşe Al
+              </button>
+            </div>
           </div>
           ${prereqNote ? `<div style="color: #ef476f; font-size: 11px; font-weight: 800;">${prereqNote}</div>` : ''}
         </div>
       `;
     }
 
-    // 4) Seda T. - 3rd Stylist for Chair #3 — ₺7,500, prerequisite: Salon Alanı Büyütme (3. İstasyon)
+    // 4) Seda T. - 3rd Stylist for Chair #3 — ₺7,500 (75 💎), prerequisite: Salon Alanı Büyütme (3. İstasyon)
     if (!hasStylist3) {
       const station3Ok = stationsCount >= 3;
-      const canAfford = state.cash >= 7500 && station3Ok;
-      const prereqNote = !station3Ok ? '⚠️ Ön Koşul: Önce Salon Alanı Büyütme (3. Stand ₺8,000) yükseltmesi alınmalıdır!' : '';
+      const canAffordCash = state.cash >= 7500 && station3Ok;
+      const canAffordDiamond = state.diamonds >= 75 && station3Ok;
+      const prereqNote = !station3Ok ? '⚠️ Ön Koşul: Önce Salon Alanı Büyütme (3. Stand) yükseltmesi alınmalıdır!' : '';
 
       html += `
         <div style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(247, 37, 133, 0.15)); border: 2px solid ${station3Ok ? '#c084fc' : '#ef476f'}; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
@@ -817,9 +936,14 @@ export class UIManager {
               <h4 style="margin: 0 0 4px 0; color: #c084fc;">👩‍🎨 Seda T. (3. Kuaför — Koltuk #3)</h4>
               <p style="margin: 0; font-size: 12px; color: #cbd5e1;">3. kuaför koltuğundaki (17, 4) VIP ve Gelin Saçı müşterilerini otomatik yapar.</p>
             </div>
-            <button class="btn-upgrade ${canAfford ? '' : 'disabled'}" id="btn-hire-stylist-3" style="white-space: nowrap;">
-              ₺7,500 İşe Al
-            </button>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" id="btn-hire-stylist-3" style="white-space: nowrap; font-size: 11px; padding: 6px 10px;">
+                ₺7,500 İşe Al
+              </button>
+              <button class="btn-upgrade ${canAffordDiamond ? '' : 'disabled'}" id="btn-hire-stylist-3-diamond" style="white-space: nowrap; font-size: 11px; padding: 6px 10px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+                ⚡ 75 💎 İşe Al
+              </button>
+            </div>
           </div>
           ${prereqNote ? `<div style="color: #ef476f; font-size: 11px; font-weight: 800;">${prereqNote}</div>` : ''}
         </div>
@@ -829,10 +953,15 @@ export class UIManager {
     html += `</div>`;
     this.modalBody.innerHTML = html;
 
-    // Bind hire buttons
+    // Bind hire buttons (Cash & Diamonds)
     document.getElementById('btn-hire-stylist-1')?.addEventListener('click', () => {
       if (this.stateStore.deductCash(2000)) {
         this.stateStore.hireEmployee('Cansu A.', 'JUNIOR_STYLIST', 0);
+        this.renderEmployeesList();
+      }
+    });
+    document.getElementById('btn-hire-stylist-1-diamond')?.addEventListener('click', () => {
+      if (this.stateStore.hireEmployeeWithDiamonds('Cansu A.', 'JUNIOR_STYLIST', 0, 20)) {
         this.renderEmployeesList();
       }
     });
@@ -843,10 +972,20 @@ export class UIManager {
         this.renderEmployeesList();
       }
     });
+    document.getElementById('btn-hire-receptionist-diamond')?.addEventListener('click', () => {
+      if (this.stateStore.hireEmployeeWithDiamonds('Pelin K.', 'RECEPTIONIST', -1, 25)) {
+        this.renderEmployeesList();
+      }
+    });
 
     document.getElementById('btn-hire-stylist-2')?.addEventListener('click', () => {
       if (this.stateStore.deductCash(4500)) {
         this.stateStore.hireEmployee('Selin K.', 'JUNIOR_STYLIST', 1);
+        this.renderEmployeesList();
+      }
+    });
+    document.getElementById('btn-hire-stylist-2-diamond')?.addEventListener('click', () => {
+      if (this.stateStore.hireEmployeeWithDiamonds('Selin K.', 'JUNIOR_STYLIST', 1, 45)) {
         this.renderEmployeesList();
       }
     });
@@ -857,10 +996,21 @@ export class UIManager {
         this.renderEmployeesList();
       }
     });
+    document.getElementById('btn-hire-stylist-3-diamond')?.addEventListener('click', () => {
+      if (this.stateStore.hireEmployeeWithDiamonds('Seda T.', 'JUNIOR_STYLIST', 2, 75)) {
+        this.renderEmployeesList();
+      }
+    });
 
     employees.forEach((emp) => {
       document.getElementById(`btn-lvl-${emp.id}`)?.addEventListener('click', () => {
         if (this.stateStore.upgradeEmployeeLevel(emp.id)) {
+          this.renderEmployeesList();
+        }
+      });
+
+      document.getElementById(`btn-lvl-diamond-${emp.id}`)?.addEventListener('click', () => {
+        if (this.stateStore.upgradeEmployeeLevelWithDiamonds(emp.id)) {
           this.renderEmployeesList();
         }
       });

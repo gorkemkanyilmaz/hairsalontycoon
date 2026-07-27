@@ -96,7 +96,7 @@ html, body {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  z-index: 90;
+  z-index: 500;
   pointer-events: auto !important;
 }
 
@@ -129,7 +129,7 @@ html, body {
   align-items: center;
   gap: 4px;
   pointer-events: auto !important;
-  z-index: 100 !important;
+  z-index: 510 !important;
 }
 
 .top-nav-btn {
@@ -812,19 +812,26 @@ html, body {
   box-shadow: 0 8px 25px rgba(245, 158, 11, 0.7);
 }
 
-/* Top HUD Live Training Bar */
+/* Top HUD Live Training Bar (Positioned under header menu) */
 #training-hud-bar {
   position: fixed;
-  top: 68px;
+  top: 58px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 450;
+  z-index: 80;
   display: flex;
   flex-direction: column;
   gap: 6px;
   max-width: 92%;
-  width: 480px;
+  width: 440px;
   pointer-events: auto !important;
+}
+
+@media (max-width: 768px) {
+  #training-hud-bar {
+    top: 96px;
+    width: 90%;
+  }
 }
 
 .training-hud-card {
@@ -858,3 +865,4 @@ html, body {
 .btn-speedup-hud:hover {
   transform: scale(1.05);
 }
+

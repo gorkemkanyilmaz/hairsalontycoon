@@ -458,6 +458,192 @@ export class StateStore {
     return true;
   }
 
+  public purchaseUpgradeWithDiamonds(upgradeId: string): boolean {
+    const activeBranch = this.getActiveBranch();
+    const upgrade = activeBranch.upgrades[upgradeId];
+    if (!upgrade) return false;
+    if (upgrade.level >= upgrade.maxLevel) return false;
+
+    if (upgrade.prerequisiteUpgradeId) {
+      const prereq = activeBranch.upgrades[upgrade.prerequisiteUpgradeId];
+      if (!prereq || prereq.level < 1) {
+        this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `⚠️ ÖN KOŞUL: ${upgrade.prerequisiteDescription || 'Önceki geliştirme satın alınmalıdır!'}`);
+        return false;
+      }
+    }
+
+    const currentCost = Math.floor(upgrade.baseCost * Math.pow(upgrade.costMultiplier, upgrade.level));
+    const diamondCost = Math.max(1, Math.ceil(currentCost / 100));
+
+    if (!this.deductDiamonds(diamondCost)) return false;
+
+    upgrade.level += 1;
+    this.addXP(35 * upgrade.level);
+
+    if (upgradeId === 'salon_expansion') {
+      activeBranch.barberStationsCount = Math.max(activeBranch.barberStationsCount || 1, 3);
+      activeBranch.chairsCount = Math.max(activeBranch.chairsCount || 1, 3);
+      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `📐 TEBRİKLER! SALON BÜYÜTÜLDÜ! 3. Kuaför Standı & 👰 Gelin Saçı Hizmeti Açıldı!`);
+    }
+
+    this.eventBus.emit(GameEventType.UPGRADE_PURCHASED, upgrade);
+    this.eventBus.emit(GameEventType.STATE_CHANGED, this.state);
+    this.saveState();
+    return true;
+  }
+
+  public buyWaitingSofaWithDiamonds(): boolean {
+    const branch = this.getActiveBranch();
+    if ((branch.waitingSofasCount || 1) >= 3) return false;
+    const diamondCost = 8;
+    if (!this.deductDiamonds(diamondCost)) return false;
+    branch.waitingSofasCount = (branch.waitingSofasCount || 1) + 1;
+    branch.queueCapacity = branch.waitingSofasCount;
+    if (branch.salonLevel < 2) branch.salonLevel = 2;
+    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `🛋️ Yeni bekleme koltuğu elmas ile kuruldu! (Toplam ${branch.waitingSofasCount}/3)`);
+    this.eventBus.emit(GameEventType.STATE_CHANGED, this.state);
+    this.saveState();
+    return true;
+  }
+
+  public buyBarberStationWithDiamonds(): boolean {
+    const branch = this.getActiveBranch();
+    if ((branch.barberStationsCount || 1) >= 2) return false;
+    const diamondCost = 20;
+    if (!this.deductDiamonds(diamondCost)) return false;
+    branch.barberStationsCount = 2;
+    branch.chairsCount = 2;
+    if (branch.salonLevel < 2) branch.salonLevel = 2;
+    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `✂️ 2. Kuaför İstasyonu elmas ile kuruldu!`);
+    this.eventBus.emit(GameEventType.STATE_CHANGED, this.state);
+    this.saveState();
+    return true;
+  }
+
+  public hireEmployeeWithDiamonds(name: string, role: 'JUNIOR_STYLIST' | 'SENIOR_STYLIST' | 'RECEPTIONIST', chairIndex: number, diamondCost: number): boolean {
+    if (!this.deductDiamonds(diamondCost)) return false;
+    this.hireEmployee(name, role, chairIndex);
+    return true;
+  }
+
+  public upgradeEmployeeLevelWithDiamonds(employeeId: string): boolean {
+    const emp = this.state.employees.find((e) => e.id === employeeId);
+    if (!emp) return false;
+
+    const costCash = emp.level * 250;
+    const diamondCost = Math.max(1, Math.ceil(costCash / 100));
+    if (!this.deductDiamonds(diamondCost)) return false;
+
+    emp.level += 1;
+    emp.speedMultiplier += 0.20;
+    const durationSec = 20 + emp.level * 10;
+    emp.trainingEndsTimestamp = Date.now() + durationSec * 1000;
+
+    this.eventBus.emit(GameEventType.EMPLOYEE_LEVEL_UP, emp);
+    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `🎓 ${emp.name} ELMAS İLE SEVİYE ${emp.level} EĞİTİMİNE BAŞLADI! (${durationSec} sn)`);
+    this.eventBus.emit(GameEventType.STATE_CHANGED, this.state);
+    this.saveState();
+    return true;
+  }
+
+  public orderStockRestockWithDiamonds(amount: number, diamondCost: number): boolean {
+    if (this.state.retailProductsStock >= this.state.maxRetailStock) return false;
+    if (!this.deductDiamonds(diamondCost)) return false;
+
+    this.state.retailProductsStock = Math.min(this.state.maxRetailStock, this.state.retailProductsStock + amount);
+    this.eventBus.emit(GameEventType.STOCK_CHANGED, this.state.retailProductsStock);
+    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `📦 HIZLI KURYE ELMAS İLE GELDİ! +${amount} Şampuan & Bakım Stoğu Teslim Edildi!`);
+    this.eventBus.emit(GameEventType.STATE_CHANGED, this.state);
+    this.saveState();
+    return true;
+  }
+
+  public startSocialMediaAdPackageWithDiamonds(packageType: 'BRONZE' | 'SILVER' | 'GOLD'): boolean {
+    let cashCost = 500;
+    let durationSec = 60;
+    let spawnMult = 1.5;
+    let vipRate = 0.25;
+
+    if (packageType === 'SILVER') {
+      cashCost = 1000;
+      durationSec = 90;
+      spawnMult = 2.0;
+      vipRate = 0.45;
+    } else if (packageType === 'GOLD') {
+      cashCost = 2000;
+      durationSec = 120;
+      spawnMult = 3.0;
+      vipRate = 0.75;
+    }
+
+    const diamondCost = Math.max(1, Math.ceil(cashCost / 100));
+    if (!this.deductDiamonds(diamondCost)) return false;
+
+    this.activeSocialAdPackage = {
+      type: packageType,
+      endsTimestamp: Date.now() + durationSec * 1000,
+      spawnMultiplier: spawnMult,
+      vipChance: vipRate
+    };
+
+    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `📱 REKLAM KAMPANYASI ELMASLA BAŞLATILDI! (${packageType} Paket: +%${Math.round((spawnMult - 1) * 100)} Müşteri & %${Math.round(vipRate * 100)} VIP)`);
+    this.eventBus.emit(GameEventType.STATE_CHANGED, this.state);
+    this.saveState();
+    return true;
+  }
+
+  public openNewFranchiseBranchWithDiamonds(): boolean {
+    const BRANCH_NAMES = [
+      'Nişantaşı Lüks Salon',
+      'Kadıköy Moda Salon',
+      'Beşiktaş Çarşı Salon',
+      'Bebek Sahil Salon',
+      'Etiler VIP Salon',
+      'Göktürk Prestige Salon',
+      'Bağdat Caddesi Salon',
+      'Kanyon Deluxe Salon'
+    ];
+
+    const nextBranchIdx = this.state.branches.length;
+    const baseCost = 10000;
+    const cashCost = Math.floor(baseCost * Math.pow(2.2, nextBranchIdx - 1));
+    const diamondCost = Math.max(1, Math.ceil(cashCost / 100));
+
+    if (!this.deductDiamonds(diamondCost)) return false;
+
+    const salonName = BRANCH_NAMES[nextBranchIdx] || `Lüks Şube #${nextBranchIdx + 1}`;
+
+    const newBranch: ISalonState = {
+      branchIndex: nextBranchIdx,
+      salonName: salonName,
+      salonLevel: 1,
+      queueCapacity: 1,
+      waitingSofasCount: 1,
+      barberStationsCount: 1,
+      chairsCount: 1,
+      prestigeMultiplier: 1.0 + nextBranchIdx * 0.5,
+      constructionEndsTimestamp: Date.now() + 3600 * 1000,
+      upgrades: {
+        quick_scissors: { id: 'quick_scissors', name: 'Hızlı Fön & Makas', description: 'Kuaför işlem hızını artırır.', icon: '✂️', level: 0, maxLevel: 25, baseCost: 100, costMultiplier: 1.4, requiredPlayerLevel: 1 },
+        comfy_chair: { id: 'comfy_chair', name: 'Ergonomik Kuaför Koltuğu', description: 'Müşteri sabrını ve bahşiş oranını yükseltir.', icon: '💺', level: 0, maxLevel: 20, baseCost: 150, costMultiplier: 1.5, requiredPlayerLevel: 1 },
+        auto_cashier: { id: 'auto_cashier', name: 'POS Dokunmatik Kasa', description: 'Ödeme alma süresini hızlandırır.', icon: '💳', level: 0, maxLevel: 15, baseCost: 300, costMultiplier: 1.6, requiredPlayerLevel: 2 },
+        hair_wash_station: { id: 'hair_wash_station', name: 'Saç Yıkama & Spa Ünitesi', description: 'Servis başı geliri +%40 artırır.', icon: '🚰', level: 0, maxLevel: 10, baseCost: 500, costMultiplier: 1.8, requiredPlayerLevel: 3 },
+        vip_champagne: { id: 'vip_champagne', name: 'VIP Şampanya İkramı', description: 'VIP müşterilerin ödediği parayı 2x yapar.', icon: '🍾', level: 0, maxLevel: 10, baseCost: 1000, costMultiplier: 2.0, requiredPlayerLevel: 4 },
+        marketing_boost: { id: 'marketing_boost', name: 'Sosyal Medya Reklamları', description: 'Salona gelen toplam müşteri sayısını artırır.', icon: '📱', level: 0, maxLevel: 15, baseCost: 250, costMultiplier: 1.5, requiredPlayerLevel: 2 },
+        salon_expansion: { id: 'salon_expansion', name: 'Salon Alanı Büyütme', description: 'Salona 3. kuaför standı & gelin saçı bölümünü ekler.', icon: '📐', level: 0, maxLevel: 1, baseCost: 8000, costMultiplier: 1.0, requiredPlayerLevel: 5, prerequisiteUpgradeId: 'comfy_chair', prerequisiteDescription: 'Ergonomik Kuaför Koltuğu en az Seviye 1 olmalıdır' }
+      }
+    };
+
+    this.state.branches.push(newBranch);
+    this.state.activeBranchIndex = nextBranchIdx;
+
+    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `🏰 TEBRİKLER! ELMAS İLE YENİ ŞUBE (${salonName}) KURULDU!`);
+    this.eventBus.emit(GameEventType.BRANCH_SWITCHED, nextBranchIdx);
+    this.eventBus.emit(GameEventType.STATE_CHANGED, this.state);
+    this.saveState();
+    return true;
+  }
+
   public isMarketingActive: boolean = false;
   public marketingTimerSec: number = 0;
 

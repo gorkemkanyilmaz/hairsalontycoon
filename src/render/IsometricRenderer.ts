@@ -127,11 +127,25 @@ export class IsometricRenderer {
     this.render();
   }
 
+  public zoomAt(newZoom: number, focusX: number = window.innerWidth / 2, focusY: number = window.innerHeight / 2): void {
+    const oldZoom = this.zoom;
+    const clampedZoom = Math.max(0.08, Math.min(2.5, newZoom));
+    if (clampedZoom === oldZoom) return;
+
+    const zoomRatio = clampedZoom / oldZoom;
+    this.offsetX = focusX - (focusX - this.offsetX) * zoomRatio;
+    this.offsetY = focusY - (focusY - this.offsetY) * zoomRatio;
+
+    this.zoom = clampedZoom;
+    this.clampCamera();
+    this.render();
+  }
+
   private clampCamera(): void {
     if (isNaN(this.zoom) || !isFinite(this.zoom) || this.zoom <= 0) {
       this.zoom = window.innerWidth < 600 ? 0.42 : 0.78;
     }
-    this.zoom = Math.max(0.40, Math.min(2.0, this.zoom));
+    this.zoom = Math.max(0.08, Math.min(2.5, this.zoom));
 
     const centerGridX = (this.gridWidth - 1) / 2;
     const centerGridY = (this.gridHeight - 1) / 2;
@@ -143,25 +157,21 @@ export class IsometricRenderer {
     const targetCenterY = (window.innerHeight / 2) - (isoCenterY * this.zoom) + 90 * this.zoom;
 
     const branchCount = Math.max(1, this.stateStore.getState().branches ? this.stateStore.getState().branches.length : 1);
-    const rightmostOffset = (branchCount - 1) * (1920 * this.zoom / 2);
+    const branchSpanX = (branchCount - 1) * (this.BRANCH_SPACING * (this.tileWidth / 2) * this.zoom);
 
-    const minOffsetX = targetCenterX - rightmostOffset - 1200 * this.zoom;
-    const maxOffsetX = targetCenterX + 800 * this.zoom;
+    const minOffsetX = targetCenterX - branchSpanX - 2000;
+    const maxOffsetX = targetCenterX + 2000;
 
     this.offsetX = Math.max(minOffsetX, Math.min(maxOffsetX, this.offsetX));
-    this.offsetY = Math.max(targetCenterY - 800 * this.zoom, Math.min(targetCenterY + 800 * this.zoom, this.offsetY));
+    this.offsetY = Math.max(targetCenterY - 1500, Math.min(targetCenterY + 1500, this.offsetY));
   }
 
   public zoomIn(): void {
-    this.zoom = Math.min(this.zoom + 0.15, 2.0);
-    this.clampCamera();
-    this.render();
+    this.zoomAt(this.zoom * 1.25);
   }
 
   public zoomOut(): void {
-    this.zoom = Math.max(this.zoom - 0.15, 0.40);
-    this.clampCamera();
-    this.render();
+    this.zoomAt(this.zoom * 0.75);
   }
 
   public gridToScreen(gx: number, gy: number): IIsoPoint {
@@ -289,8 +299,8 @@ export class IsometricRenderer {
 
     this.canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
-      if (e.deltaY < 0) this.zoomIn();
-      else this.zoomOut();
+      const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
+      this.zoomAt(this.zoom * zoomFactor, e.clientX, e.clientY);
     });
 
     this.canvas.addEventListener('click', (e) => {
@@ -343,9 +353,9 @@ export class IsometricRenderer {
         const currentDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
         if (currentDist > 0 && this.initialPinchDist > 0) {
           const pinchScale = currentDist / this.initialPinchDist;
-          this.zoom = Math.max(0.40, Math.min(2.0, this.initialZoom * pinchScale));
-          this.clampCamera();
-          this.render();
+          const midX = (t1.clientX + t2.clientX) / 2;
+          const midY = (t1.clientY + t2.clientY) / 2;
+          this.zoomAt(this.initialZoom * pinchScale, midX, midY);
         }
       }
     }, { passive: false });
@@ -543,37 +553,51 @@ export class IsometricRenderer {
     const text1 = `🎓 EĞİTİMDE (${remainingSec}s)`;
     const text2 = `⚡ 10💎 HIZLANDIR`;
 
-    this.ctx.font = `bold ${Math.max(12, 13 * z)}px Outfit, sans-serif`;
+    // Dynamic, crisp font scaling that remains large and readable even at low zoom levels
+    const fontSize1 = Math.max(15, Math.round(17 * z));
+    const fontSize2 = Math.max(13, Math.round(14 * z));
+
+    this.ctx.font = `900 ${fontSize1}px 'Outfit', sans-serif`;
     const w1 = this.ctx.measureText(text1).width;
+    this.ctx.font = `800 ${fontSize2}px 'Outfit', sans-serif`;
     const w2 = this.ctx.measureText(text2).width;
-    const pillW = Math.max(140 * z, Math.max(w1, w2) + 24 * z);
-    const pillH = 42 * z;
+
+    const maxTextW = Math.max(w1, w2);
+    const pillW = maxTextW + 28;
+    const pillH = fontSize1 + fontSize2 + 18;
     const px = x - pillW / 2;
     const py = y - pillH / 2;
 
     // Bobbing animation for attention
-    const bob = Math.sin(Date.now() / 300) * 3 * z;
+    const bob = Math.sin(Date.now() / 300) * 3;
     this.ctx.translate(0, bob);
 
-    // Dark high-contrast rounded background with gold border
-    this.ctx.fillStyle = 'rgba(15, 10, 30, 0.96)';
+    // High contrast drop shadow for extreme legibility over background graphics
+    this.ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+    this.ctx.shadowBlur = 12;
+
+    // Dark rich background with rounded corners and gold border
+    this.ctx.fillStyle = 'rgba(12, 8, 24, 0.96)';
     this.ctx.beginPath();
-    this.ctx.roundRect(px, py, pillW, pillH, 12 * z);
+    this.ctx.roundRect(px, py, pillW, pillH, 12);
     this.ctx.fill();
 
+    this.ctx.shadowBlur = 0; // Turn off drop shadow for text rendering
     this.ctx.strokeStyle = '#fbbf24';
-    this.ctx.lineWidth = 2.5 * z;
+    this.ctx.lineWidth = 2.5;
     this.ctx.stroke();
 
     // Line 1: Training status with remaining seconds
+    this.ctx.font = `900 ${fontSize1}px 'Outfit', sans-serif`;
     this.ctx.fillStyle = '#fbbf24';
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'top';
-    this.ctx.fillText(text1, x, py + 5 * z);
+    this.ctx.fillText(text1, x, py + 7);
 
-    // Line 2: Speedup hint pill
-    this.ctx.fillStyle = '#10b981';
-    this.ctx.fillText(text2, x, py + 22 * z);
+    // Line 2: Speedup hint button label
+    this.ctx.font = `800 ${fontSize2}px 'Outfit', sans-serif`;
+    this.ctx.fillStyle = '#34d399';
+    this.ctx.fillText(text2, x, py + 9 + fontSize1);
 
     this.ctx.restore();
   }
