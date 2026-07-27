@@ -88,12 +88,15 @@ export class IsometricRenderer {
     this.canvas.style.height = `${window.innerHeight}px`;
 
     // Mobile Responsive Auto-Fit Zoom Adjustment
-    // Fit the whole salon isometric footprint (~88% of screen width) so nothing overlaps
-    // and tapping stays accurate on small phones like iPhone 14 Pro.
+    // Fill ~85-90% of screen height & width on iPhone/portrait screens so salon dominates the viewport
+    // with a subtle grass margin while keeping every station perfectly spaced & tap-friendly.
     if (window.innerWidth < 600) {
       const isoWidth = (this.gridWidth + this.gridHeight) * (this.tileWidth / 2);
-      const targetW = window.innerWidth * 0.88;
-      this.zoom = Math.max(0.30, Math.min(0.60, targetW / isoWidth));
+      const isoHeight = (this.gridWidth + this.gridHeight) * (this.tileHeight / 2);
+      
+      const zoomForW = (window.innerWidth * 0.94) / isoWidth;
+      const zoomForH = (window.innerHeight * 0.75) / isoHeight;
+      this.zoom = Math.max(0.40, Math.min(0.75, Math.max(zoomForW, zoomForH)));
     } else {
       this.zoom = 0.78;
     }
@@ -103,7 +106,7 @@ export class IsometricRenderer {
 
   public centerCamera(): void {
     if (isNaN(this.zoom) || !isFinite(this.zoom) || this.zoom <= 0) {
-      this.zoom = window.innerWidth < 600 ? 0.42 : 0.78;
+      this.zoom = window.innerWidth < 600 ? 0.45 : 0.78;
     }
 
     const activeBranchIdx = this.stateStore.getState().activeBranchIndex || 0;
@@ -112,7 +115,7 @@ export class IsometricRenderer {
 
   public centerCameraOnBranch(branchIdx: number): void {
     if (isNaN(this.zoom) || !isFinite(this.zoom) || this.zoom <= 0) {
-      this.zoom = window.innerWidth < 600 ? 0.42 : 0.78;
+      this.zoom = window.innerWidth < 600 ? 0.45 : 0.78;
     }
 
     const branchOffsetX = branchIdx * this.BRANCH_SPACING;
@@ -123,7 +126,7 @@ export class IsometricRenderer {
     const isoCenterY = (centerGridX + centerGridY) * (this.tileHeight / 2);
 
     this.offsetX = (window.innerWidth / 2) - (isoCenterX * this.zoom);
-    this.offsetY = (window.innerHeight / 2) - (isoCenterY * this.zoom) + 90 * this.zoom;
+    this.offsetY = (window.innerHeight / 2) - (isoCenterY * this.zoom) + 20 * this.zoom;
     this.render();
   }
 

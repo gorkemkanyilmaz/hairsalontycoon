@@ -533,11 +533,12 @@ export class CustomerManager {
         customer.appliedHairColor = hexColor;
       }
 
-      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `✨ FİZİKSEL DÖNÜŞÜM! ${customer.name} saçı ${customer.wish.color} rengine boyandı!`);
-
       const activeBranch = this.stateStore.getActiveBranch();
       const chairMultiplier = 1 + ((activeBranch.upgrades?.comfy_chair?.level || 0) * 0.15);
-      customer.earnedAmount += Math.floor((basePrice + tip) * chairMultiplier);
+      const totalEarned = Math.floor((basePrice + tip) * chairMultiplier);
+      customer.earnedAmount += totalEarned;
+
+      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `💖 ${customer.name} saç stilinden çok memnun kaldı! 💵 +₺${Math.floor(basePrice * chairMultiplier)} Hizmet & 🪙 +₺${Math.floor(tip * chairMultiplier)} Bahşiş Verildi!`);
     }
 
     const activeBranch = this.stateStore.getActiveBranch();

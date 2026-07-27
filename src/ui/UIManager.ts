@@ -336,21 +336,21 @@ export class UIManager {
         <div style="display: flex; flex-direction: column; gap: 12px;">
           <h4 style="margin: 0; color: #fbbf24; font-size: 14px;">🚚 HIZLI KURYE SİPARİŞİ VER:</h4>
           
-          <div style="display: flex; gap: 8px;">
-            <button class="btn-upgrade ${canAffordCash50 ? '' : 'disabled'}" id="btn-restock-50" style="flex: 1;">
+          <div style="display: flex; gap: 6px; width: 100%;">
+            <button class="btn-upgrade ${canAffordCash50 ? '' : 'disabled'}" id="btn-restock-50" style="flex: 1; font-size: 11px; padding: 8px 6px; white-space: nowrap; text-align: center;">
               📦 +50 Stok (₺150)
             </button>
-            <button class="btn-upgrade ${canAffordDiamond50 ? '' : 'disabled'}" id="btn-restock-50-diamond" style="flex: 1; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+            <button class="btn-upgrade ${canAffordDiamond50 ? '' : 'disabled'}" id="btn-restock-50-diamond" style="flex: 1; font-size: 11px; padding: 8px 6px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white; white-space: nowrap; text-align: center;">
               ⚡ +50 Stok (2 💎)
             </button>
           </div>
 
-          <div style="display: flex; gap: 8px;">
-            <button class="btn-upgrade ${canAffordCash100 ? '' : 'disabled'}" id="btn-restock-100" style="flex: 1;">
-              📦 +100 Süper Stok (₺250)
+          <div style="display: flex; gap: 6px; width: 100%;">
+            <button class="btn-upgrade ${canAffordCash100 ? '' : 'disabled'}" id="btn-restock-100" style="flex: 1; font-size: 11px; padding: 8px 6px; white-space: nowrap; text-align: center;">
+              📦 +100 Stok (₺250)
             </button>
-            <button class="btn-upgrade ${canAffordDiamond100 ? '' : 'disabled'}" id="btn-restock-100-diamond" style="flex: 1; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
-              ⚡ +100 Süper Stok (3 💎)
+            <button class="btn-upgrade ${canAffordDiamond100 ? '' : 'disabled'}" id="btn-restock-100-diamond" style="flex: 1; font-size: 11px; padding: 8px 6px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white; white-space: nowrap; text-align: center;">
+              ⚡ +100 Stok (3 💎)
             </button>
           </div>
         </div>

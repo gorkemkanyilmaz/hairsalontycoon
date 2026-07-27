@@ -786,15 +786,16 @@ html, body {
 .btn-show-quest-toggle {
   position: fixed;
   bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 20px;
+  left: auto;
+  transform: none;
   background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
   border: 2px solid #ffffff;
   color: #1e1b4b;
   font-family: 'Outfit', sans-serif;
   font-size: 13px;
   font-weight: 900;
-  padding: 8px 20px;
+  padding: 8px 18px;
   border-radius: 99px;
   cursor: pointer;
   box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5), 0 0 15px rgba(251, 191, 36, 0.4);
@@ -808,7 +809,7 @@ html, body {
 }
 
 .btn-show-quest-toggle:hover {
-  transform: translateX(-50%) scale(1.06);
+  transform: scale(1.06);
   box-shadow: 0 8px 25px rgba(245, 158, 11, 0.7);
 }
 
