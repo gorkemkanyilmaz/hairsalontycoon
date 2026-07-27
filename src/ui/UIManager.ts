@@ -803,7 +803,7 @@ export class UIManager {
 
         html += `
           <div style="background: rgba(255,255,255,0.06); border: 1px solid #f472b6; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; font-family: 'Outfit', sans-serif;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
               <div style="display: flex; align-items: center; gap: 12px;">
                 <span style="font-size: 32px;">${emp.role === 'RECEPTIONIST' ? '👩‍💼' : '👩‍🎨'}</span>
                 <div>
@@ -820,20 +820,18 @@ export class UIManager {
 
             ${prereqFailed ? `<div style="color: #ef476f; font-size: 11px; font-weight: 800;">${prereqMsg}</div>` : ''}
 
-            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <div style="display: flex; gap: 8px; margin-top: 4px; width: 100%;">
               ${
                 isTraining
-                  ? `<button class="btn-upgrade" id="btn-speedup-${emp.id}" style="font-size: 11px; padding: 6px 12px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+                  ? `<button class="btn-upgrade" id="btn-speedup-${emp.id}" style="width: 100%; font-size: 12px; padding: 8px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white; white-space: nowrap;">
                       ⚡ 10 💎 Elmas ile Hızlı Bitir
                      </button>`
-                  : `<div style="display: flex; gap: 6px;">
-                      <button class="btn-upgrade ${canAffordUpgradeCash ? '' : 'disabled'}" id="btn-lvl-${emp.id}" style="font-size: 11px; padding: 6px 12px;">
-                        🎓 Seviye ${emp.level + 1} (₺${costCash})
-                      </button>
-                      <button class="btn-upgrade ${canAffordUpgradeDiamond ? '' : 'disabled'}" id="btn-lvl-diamond-${emp.id}" style="font-size: 11px; padding: 6px 12px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
-                        ⚡ ${costDiamond} 💎 ile Eğit
-                      </button>
-                     </div>`
+                  : `<button class="btn-upgrade ${canAffordUpgradeCash ? '' : 'disabled'}" id="btn-lvl-${emp.id}" style="flex: 1; font-size: 12px; padding: 8px; white-space: nowrap;">
+                      🎓 Seviye ${emp.level + 1} (₺${costCash})
+                     </button>
+                     <button class="btn-upgrade ${canAffordUpgradeDiamond ? '' : 'disabled'}" id="btn-lvl-diamond-${emp.id}" style="flex: 1; font-size: 12px; padding: 8px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white; white-space: nowrap;">
+                      ⚡ ${costDiamond} 💎 ile Eğit
+                     </button>`
               }
             </div>
           </div>
@@ -853,20 +851,18 @@ export class UIManager {
       const canAffordCash = state.cash >= 2000;
       const canAffordDiamond = state.diamonds >= 20;
       html += `
-        <div style="background: linear-gradient(135deg, rgba(6, 214, 160, 0.18), rgba(247, 37, 133, 0.15)); border: 2px solid #06d6a0; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-            <div>
-              <h4 style="margin: 0 0 4px 0; color: #06d6a0;">👩‍🎨 Cansu A. (1. Kuaför — Koltuk #1)</h4>
-              <p style="margin: 0; font-size: 12px; color: #cbd5e1;">1. kuaför koltuğundaki (7, 4) müşterilerin saçını otomatik yapar.</p>
-            </div>
-            <div style="display: flex; gap: 6px;">
-              <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" id="btn-hire-stylist-1" style="white-space: nowrap; font-size: 11px; padding: 6px 10px;">
-                ₺2,000 İşe Al
-              </button>
-              <button class="btn-upgrade ${canAffordDiamond ? '' : 'disabled'}" id="btn-hire-stylist-1-diamond" style="white-space: nowrap; font-size: 11px; padding: 6px 10px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
-                ⚡ 20 💎 İşe Al
-              </button>
-            </div>
+        <div style="background: linear-gradient(135deg, rgba(6, 214, 160, 0.18), rgba(247, 37, 133, 0.15)); border: 2px solid #06d6a0; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; font-family: 'Outfit', sans-serif;">
+          <div>
+            <h4 style="margin: 0 0 4px 0; color: #06d6a0; font-size: 15px; font-weight: 800;">👩‍🎨 Cansu A. (1. Kuaför — Koltuk #1)</h4>
+            <p style="margin: 0; font-size: 12px; color: #cbd5e1; line-height: 1.4;">1. kuaför koltuğundaki (7, 4) müşterilerin saçını otomatik yapar.</p>
+          </div>
+          <div style="display: flex; gap: 8px; width: 100%; margin-top: 4px;">
+            <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" id="btn-hire-stylist-1" style="flex: 1; font-size: 12px; padding: 8px; white-space: nowrap;">
+              ₺2,000 İşe Al
+            </button>
+            <button class="btn-upgrade ${canAffordDiamond ? '' : 'disabled'}" id="btn-hire-stylist-1-diamond" style="flex: 1; font-size: 12px; padding: 8px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white; white-space: nowrap;">
+              ⚡ 20 💎 İşe Al
+            </button>
           </div>
         </div>
       `;
@@ -877,16 +873,16 @@ export class UIManager {
       const canAffordCash = state.cash >= 2500;
       const canAffordDiamond = state.diamonds >= 25;
       html += `
-        <div style="background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(247, 37, 133, 0.15)); border: 2px solid #38bdf8; border-radius: 16px; padding: 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+        <div style="background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(247, 37, 133, 0.15)); border: 2px solid #38bdf8; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; font-family: 'Outfit', sans-serif;">
           <div>
-            <h4 style="margin: 0 0 4px 0; color: #38bdf8;">👩‍💼 Pelin K. (Otomatik Kasiyer)</h4>
-            <p style="margin: 0; font-size: 12px; color: #cbd5e1;">Kasada bekleyen müşterilerin ödemesini otomatik tahsil eder. Sabır krizlerini önler!</p>
+            <h4 style="margin: 0 0 4px 0; color: #38bdf8; font-size: 15px; font-weight: 800;">👩‍💼 Pelin K. (Otomatik Kasiyer)</h4>
+            <p style="margin: 0; font-size: 12px; color: #cbd5e1; line-height: 1.4;">Kasada bekleyen müşterilerin ödemesini otomatik tahsil eder. Sabır krizlerini önler!</p>
           </div>
-          <div style="display: flex; gap: 6px;">
-            <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" id="btn-hire-receptionist" style="white-space: nowrap; font-size: 11px; padding: 6px 10px;">
+          <div style="display: flex; gap: 8px; width: 100%; margin-top: 4px;">
+            <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" id="btn-hire-receptionist" style="flex: 1; font-size: 12px; padding: 8px; white-space: nowrap;">
               ₺2,500 İşe Al
             </button>
-            <button class="btn-upgrade ${canAffordDiamond ? '' : 'disabled'}" id="btn-hire-receptionist-diamond" style="white-space: nowrap; font-size: 11px; padding: 6px 10px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+            <button class="btn-upgrade ${canAffordDiamond ? '' : 'disabled'}" id="btn-hire-receptionist-diamond" style="flex: 1; font-size: 12px; padding: 8px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white; white-space: nowrap;">
               ⚡ 25 💎 İşe Al
             </button>
           </div>
@@ -902,22 +898,20 @@ export class UIManager {
       const prereqNote = !stationOk ? '⚠️ Ön Koşul: Önce 2. Kuaför İstasyonu haritadan satın alınmalıdır!' : '';
 
       html += `
-        <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(247, 37, 133, 0.15)); border: 2px solid ${stationOk ? '#fbbf24' : '#ef476f'}; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <h4 style="margin: 0 0 4px 0; color: #fbbf24;">👩‍🎨 Selin K. (2. Kuaför — Koltuk #2)</h4>
-              <p style="margin: 0; font-size: 12px; color: #cbd5e1;">2. kuaför koltuğundaki (12, 4) müşterilerin saçını otomatik yapar.</p>
-            </div>
-            <div style="display: flex; gap: 6px;">
-              <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" id="btn-hire-stylist-2" style="white-space: nowrap; font-size: 11px; padding: 6px 10px;">
-                ₺4,500 İşe Al
-              </button>
-              <button class="btn-upgrade ${canAffordDiamond ? '' : 'disabled'}" id="btn-hire-stylist-2-diamond" style="white-space: nowrap; font-size: 11px; padding: 6px 10px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
-                ⚡ 45 💎 İşe Al
-              </button>
-            </div>
+        <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(247, 37, 133, 0.15)); border: 2px solid ${stationOk ? '#fbbf24' : '#ef476f'}; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; font-family: 'Outfit', sans-serif;">
+          <div>
+            <h4 style="margin: 0 0 4px 0; color: #fbbf24; font-size: 15px; font-weight: 800;">👩‍🎨 Selin K. (2. Kuaför — Koltuk #2)</h4>
+            <p style="margin: 0; font-size: 12px; color: #cbd5e1; line-height: 1.4;">2. kuaför koltuğundaki (12, 4) müşterilerin saçını otomatik yapar.</p>
           </div>
           ${prereqNote ? `<div style="color: #ef476f; font-size: 11px; font-weight: 800;">${prereqNote}</div>` : ''}
+          <div style="display: flex; gap: 8px; width: 100%; margin-top: 4px;">
+            <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" id="btn-hire-stylist-2" style="flex: 1; font-size: 12px; padding: 8px; white-space: nowrap;">
+              ₺4,500 İşe Al
+            </button>
+            <button class="btn-upgrade ${canAffordDiamond ? '' : 'disabled'}" id="btn-hire-stylist-2-diamond" style="flex: 1; font-size: 12px; padding: 8px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white; white-space: nowrap;">
+              ⚡ 45 💎 İşe Al
+            </button>
+          </div>
         </div>
       `;
     }
@@ -930,22 +924,20 @@ export class UIManager {
       const prereqNote = !station3Ok ? '⚠️ Ön Koşul: Önce Salon Alanı Büyütme (3. Stand) yükseltmesi alınmalıdır!' : '';
 
       html += `
-        <div style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(247, 37, 133, 0.15)); border: 2px solid ${station3Ok ? '#c084fc' : '#ef476f'}; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <h4 style="margin: 0 0 4px 0; color: #c084fc;">👩‍🎨 Seda T. (3. Kuaför — Koltuk #3)</h4>
-              <p style="margin: 0; font-size: 12px; color: #cbd5e1;">3. kuaför koltuğundaki (17, 4) VIP ve Gelin Saçı müşterilerini otomatik yapar.</p>
-            </div>
-            <div style="display: flex; gap: 6px;">
-              <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" id="btn-hire-stylist-3" style="white-space: nowrap; font-size: 11px; padding: 6px 10px;">
-                ₺7,500 İşe Al
-              </button>
-              <button class="btn-upgrade ${canAffordDiamond ? '' : 'disabled'}" id="btn-hire-stylist-3-diamond" style="white-space: nowrap; font-size: 11px; padding: 6px 10px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
-                ⚡ 75 💎 İşe Al
-              </button>
-            </div>
+        <div style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(247, 37, 133, 0.15)); border: 2px solid ${station3Ok ? '#c084fc' : '#ef476f'}; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; font-family: 'Outfit', sans-serif;">
+          <div>
+            <h4 style="margin: 0 0 4px 0; color: #c084fc; font-size: 15px; font-weight: 800;">👩‍🎨 Seda T. (3. Kuaför — Koltuk #3)</h4>
+            <p style="margin: 0; font-size: 12px; color: #cbd5e1; line-height: 1.4;">3. kuaför koltuğundaki (17, 4) VIP ve Gelin Saçı müşterilerini otomatik yapar.</p>
           </div>
           ${prereqNote ? `<div style="color: #ef476f; font-size: 11px; font-weight: 800;">${prereqNote}</div>` : ''}
+          <div style="display: flex; gap: 8px; width: 100%; margin-top: 4px;">
+            <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" id="btn-hire-stylist-3" style="flex: 1; font-size: 12px; padding: 8px; white-space: nowrap;">
+              ₺7,500 İşe Al
+            </button>
+            <button class="btn-upgrade ${canAffordDiamond ? '' : 'disabled'}" id="btn-hire-stylist-3-diamond" style="flex: 1; font-size: 12px; padding: 8px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white; white-space: nowrap;">
+              ⚡ 75 💎 İşe Al
+            </button>
+          </div>
         </div>
       `;
     }

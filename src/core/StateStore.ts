@@ -133,6 +133,9 @@ export class StateStore {
               }
             });
           }
+          if (parsed.diamonds === undefined || parsed.diamonds < 10000) {
+            parsed.diamonds = 10000;
+          }
           return parsed;
         }
       }
@@ -161,7 +164,7 @@ export class StateStore {
 
     return {
       cash: 500,
-      diamonds: 25,
+      diamonds: 10000,
       reputation: 4.5,
       reviews: JSON.parse(JSON.stringify(INITIAL_REVIEWS)),
       playerLevel: 1,
