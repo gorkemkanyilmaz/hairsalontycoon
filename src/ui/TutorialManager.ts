@@ -7,28 +7,21 @@ export enum TutorialStep {
   WELCOME_CLICK_CHAIR = 0,
   MINIGAME_GUIDANCE = 1,
   COLLECT_CASH_DESK = 2,
-  EARN_FOR_SECOND_STATION = 3,
-  BUY_SECOND_STATION = 4,
-  EARN_FOR_HIRE_CANSU = 5,
-  OPEN_EQUIPMENT_MENU_CANSU = 6,
-  HIRE_CANSU = 7,
-  EARN_FOR_TRAIN_CANSU = 8,
-  OPEN_EQUIPMENT_MENU_TRAIN = 9,
-  TRAIN_CANSU = 10,
-  EARN_FOR_RECEPTIONIST = 11,
-  OPEN_EQUIPMENT_MENU_PELIN = 12,
-  HIRE_RECEPTIONIST = 13,
-  EARN_FOR_SHAMPOO_DEPOT = 14,
-  OPEN_PRODUCTS_MENU = 15,
-  BUY_SHAMPOO_STOCK = 16,
-  EARN_FOR_SOFA = 17,
-  BUY_SOFA = 18,
-  EARN_FOR_EXPANSION = 19,
-  OPEN_UPGRADES_EXPANSION = 20,
-  BUY_EXPANSION = 21,
-  EARN_FOR_NISANTASI_BRANCH = 22,
-  OPEN_FRANCHISE_MENU = 23,
-  OPEN_NISANTASI_BRANCH = 24,
+  EARN_FOR_HIRE_CANSU = 3,
+  OPEN_EQUIPMENT_MENU_CANSU = 4,
+  HIRE_CANSU = 5,
+  EARN_FOR_SECOND_STATION = 6,
+  BUY_SECOND_STATION = 7,
+  EARN_FOR_SOFA_2 = 8,
+  BUY_SOFA_2 = 9,
+  EARN_FOR_RECEPTIONIST = 10,
+  OPEN_EQUIPMENT_MENU_PELIN = 11,
+  HIRE_RECEPTIONIST = 12,
+  EARN_FOR_SOFA_3 = 13,
+  BUY_SOFA_3 = 14,
+  EARN_FOR_MARKETING = 15,
+  OPEN_UPGRADES_MARKETING = 16,
+  BUY_MARKETING = 17,
   COMPLETED = 99
 }
 
@@ -87,8 +80,9 @@ export class TutorialManager {
       overlay = document.createElement('div');
       overlay.id = 'tutorial-overlay';
       overlay.className = this.currentStep === TutorialStep.COMPLETED ? 'hidden' : '';
+      overlay.style.cssText = 'position: relative; z-index: 999999 !important;';
       overlay.innerHTML = `
-        <div class="tutorial-banner-box" id="tutorial-banner">
+        <div class="tutorial-banner-box" id="tutorial-banner" style="z-index: 999999 !important;">
           <div style="display: flex; align-items: center; gap: 12px; text-align: left; width: 100%;">
             <div class="quest-checkbox-icon" id="quest-checkbox-icon">[ ]</div>
             <div style="flex: 1;">
@@ -131,7 +125,7 @@ export class TutorialManager {
       spotlight = document.createElement('div');
       spotlight.id = 'tutorial-spotlight';
       spotlight.className = 'tutorial-spotlight-ring';
-      spotlight.style.cssText = 'position: fixed; display: none; z-index: 400; pointer-events: auto !important; cursor: pointer;';
+      spotlight.style.cssText = 'position: fixed; display: none; z-index: 999999 !important; pointer-events: auto !important; cursor: pointer;';
       document.body.appendChild(spotlight);
 
       spotlight.addEventListener('click', (e) => {
@@ -157,8 +151,8 @@ export class TutorialManager {
         const seatedCust = customers.find((c: any) => c.state === CustomerState.SEATED || c.state === CustomerState.ENTERING);
         if (seatedCust) {
           seatedCust.state = CustomerState.SEATED;
-          seatedCust.posX = 5;
-          seatedCust.posY = 3;
+          seatedCust.posX = 7;
+          seatedCust.posY = 4;
           if ((window as any).haircutMinigameInstance) {
             (window as any).haircutMinigameInstance.startMinigame(seatedCust);
           }
@@ -172,27 +166,22 @@ export class TutorialManager {
         const payingCust = customers.find((c: any) => c.state === CustomerState.PAYING || c.earnedAmount > 0);
         if (payingCust) {
           custMgr.collectPayment(payingCust);
-          this.saveTutorialStep(TutorialStep.EARN_FOR_SECOND_STATION);
+          const currentCash = this.stateStore.getState().cash;
+          if (currentCash >= 2000) {
+            this.saveTutorialStep(TutorialStep.OPEN_EQUIPMENT_MENU_CANSU);
+          } else {
+            this.saveTutorialStep(TutorialStep.EARN_FOR_HIRE_CANSU);
+          }
           this.updateTutorialUI();
         }
         break;
       }
 
-      case TutorialStep.BUY_SECOND_STATION: {
-        this.stateStore.buyBarberStation();
-        this.saveTutorialStep(TutorialStep.EARN_FOR_HIRE_CANSU);
-        this.updateTutorialUI();
-        break;
-      }
-
       case TutorialStep.OPEN_EQUIPMENT_MENU_CANSU:
-      case TutorialStep.OPEN_EQUIPMENT_MENU_TRAIN:
       case TutorialStep.OPEN_EQUIPMENT_MENU_PELIN: {
         document.getElementById('btn-employees')?.click();
         if (this.currentStep === TutorialStep.OPEN_EQUIPMENT_MENU_CANSU) {
           this.saveTutorialStep(TutorialStep.HIRE_CANSU);
-        } else if (this.currentStep === TutorialStep.OPEN_EQUIPMENT_MENU_TRAIN) {
-          this.saveTutorialStep(TutorialStep.TRAIN_CANSU);
         } else if (this.currentStep === TutorialStep.OPEN_EQUIPMENT_MENU_PELIN) {
           this.saveTutorialStep(TutorialStep.HIRE_RECEPTIONIST);
         }
@@ -206,9 +195,22 @@ export class TutorialManager {
         break;
       }
 
-      case TutorialStep.TRAIN_CANSU: {
-        const btnLvl = document.querySelector('[id^="btn-lvl-"]') as HTMLElement;
-        if (btnLvl) btnLvl.click();
+      case TutorialStep.BUY_SECOND_STATION: {
+        this.stateStore.buyBarberStation();
+        this.saveTutorialStep(TutorialStep.EARN_FOR_SOFA_2);
+        this.updateTutorialUI();
+        break;
+      }
+
+      case TutorialStep.BUY_SOFA_2: {
+        this.stateStore.buyWaitingSofa();
+        const cash = this.stateStore.getState().cash;
+        if (cash >= 2500) {
+          this.saveTutorialStep(TutorialStep.OPEN_EQUIPMENT_MENU_PELIN);
+        } else {
+          this.saveTutorialStep(TutorialStep.EARN_FOR_RECEPTIONIST);
+        }
+        this.updateTutorialUI();
         break;
       }
 
@@ -218,52 +220,29 @@ export class TutorialManager {
         break;
       }
 
-      case TutorialStep.OPEN_PRODUCTS_MENU: {
-        document.getElementById('btn-products')?.click();
-        this.saveTutorialStep(TutorialStep.BUY_SHAMPOO_STOCK);
-        this.updateTutorialUI();
-        break;
-      }
-
-      case TutorialStep.BUY_SHAMPOO_STOCK: {
-        const btn50 = document.getElementById('btn-restock-50');
-        if (btn50) btn50.click();
-        break;
-      }
-
-      case TutorialStep.BUY_SOFA: {
+      case TutorialStep.BUY_SOFA_3: {
         this.stateStore.buyWaitingSofa();
-        this.saveTutorialStep(TutorialStep.EARN_FOR_EXPANSION);
+        const cash = this.stateStore.getState().cash;
+        if (cash >= 250) {
+          this.saveTutorialStep(TutorialStep.OPEN_UPGRADES_MARKETING);
+        } else {
+          this.saveTutorialStep(TutorialStep.EARN_FOR_MARKETING);
+        }
         this.updateTutorialUI();
         break;
       }
 
-      case TutorialStep.OPEN_UPGRADES_EXPANSION: {
+      case TutorialStep.OPEN_UPGRADES_MARKETING: {
         document.getElementById('btn-upgrades')?.click();
-        this.saveTutorialStep(TutorialStep.BUY_EXPANSION);
+        this.saveTutorialStep(TutorialStep.BUY_MARKETING);
         this.updateTutorialUI();
         break;
       }
 
-      case TutorialStep.BUY_EXPANSION: {
-        this.stateStore.purchaseUpgrade('salon_expansion');
-        this.saveTutorialStep(TutorialStep.EARN_FOR_NISANTASI_BRANCH);
-        this.updateTutorialUI();
-        break;
-      }
-
-      case TutorialStep.OPEN_FRANCHISE_MENU: {
-        document.getElementById('btn-marketing')?.click();
-        this.saveTutorialStep(TutorialStep.OPEN_NISANTASI_BRANCH);
-        this.updateTutorialUI();
-        break;
-      }
-
-      case TutorialStep.OPEN_NISANTASI_BRANCH: {
-        const btnFranchise = document.getElementById('btn-open-franchise');
-        if (btnFranchise) btnFranchise.click();
-        else this.stateStore.openNewFranchiseBranch();
-        this.finishTutorial();
+      case TutorialStep.BUY_MARKETING: {
+        if (this.stateStore.purchaseUpgrade('marketing_boost')) {
+          this.finishTutorial();
+        }
         break;
       }
     }
@@ -285,48 +264,33 @@ export class TutorialManager {
 
     this.eventBus.on(GameEventType.CASH_CHANGED, (cash: number) => {
       this.checkCashPrerequisites(cash);
+      this.updateTutorialUI();
     });
 
     this.eventBus.on(GameEventType.EMPLOYEE_HIRED, (emp: any) => {
-      if (this.currentStep === TutorialStep.HIRE_CANSU && emp.role === 'JUNIOR_STYLIST') {
-        this.saveTutorialStep(TutorialStep.EARN_FOR_TRAIN_CANSU);
+      if (this.currentStep === TutorialStep.HIRE_CANSU && (emp.role === 'JUNIOR_STYLIST' || emp.name?.includes('Cansu'))) {
+        const currentCash = this.stateStore.getState().cash;
+        if (currentCash >= 2000) {
+          this.saveTutorialStep(TutorialStep.BUY_SECOND_STATION);
+        } else {
+          this.saveTutorialStep(TutorialStep.EARN_FOR_SECOND_STATION);
+        }
         this.updateTutorialUI();
       } else if (this.currentStep === TutorialStep.HIRE_RECEPTIONIST && emp.role === 'RECEPTIONIST') {
-        this.saveTutorialStep(TutorialStep.EARN_FOR_SHAMPOO_DEPOT);
-        this.updateTutorialUI();
-      }
-    });
-
-    this.eventBus.on(GameEventType.EMPLOYEE_LEVEL_UP, () => {
-      if (this.currentStep === TutorialStep.TRAIN_CANSU) {
-        this.saveTutorialStep(TutorialStep.EARN_FOR_RECEPTIONIST);
-        this.updateTutorialUI();
-      }
-    });
-
-    this.eventBus.on(GameEventType.STOCK_CHANGED, (stock: number) => {
-      if (this.currentStep === TutorialStep.BUY_SHAMPOO_STOCK && stock >= 50) {
-        this.saveTutorialStep(TutorialStep.EARN_FOR_SOFA);
+        const currentCash = this.stateStore.getState().cash;
+        if (currentCash >= 2500) {
+          this.saveTutorialStep(TutorialStep.BUY_SOFA_3);
+        } else {
+          this.saveTutorialStep(TutorialStep.EARN_FOR_SOFA_3);
+        }
         this.updateTutorialUI();
       }
     });
 
     this.eventBus.on(GameEventType.UPGRADE_PURCHASED, (upg: any) => {
-      if (this.currentStep === TutorialStep.BUY_EXPANSION && upg.id === 'salon_expansion') {
-        this.saveTutorialStep(TutorialStep.EARN_FOR_NISANTASI_BRANCH);
-        this.updateTutorialUI();
-      }
-    });
-
-    this.eventBus.on(GameEventType.FRANCHISE_OPENED, () => {
-      if (this.currentStep === TutorialStep.OPEN_NISANTASI_BRANCH || this.currentStep === TutorialStep.OPEN_FRANCHISE_MENU) {
+      if ((this.currentStep === TutorialStep.BUY_MARKETING || this.currentStep === TutorialStep.OPEN_UPGRADES_MARKETING) && upg.id === 'marketing_boost') {
         this.finishTutorial();
       }
-    });
-
-    this.eventBus.on(GameEventType.CASH_CHANGED, (cash: number) => {
-      this.checkCashPrerequisites(cash);
-      this.updateTutorialUI();
     });
 
     this.eventBus.on(GameEventType.STATE_CHANGED, () => {
@@ -336,23 +300,33 @@ export class TutorialManager {
       this.checkCashPrerequisites(cash);
 
       if (this.currentStep === TutorialStep.BUY_SECOND_STATION && (activeBranch.barberStationsCount || 1) >= 2) {
-        this.saveTutorialStep(TutorialStep.EARN_FOR_HIRE_CANSU);
+        if (cash >= 800) {
+          this.saveTutorialStep(TutorialStep.BUY_SOFA_2);
+        } else {
+          this.saveTutorialStep(TutorialStep.EARN_FOR_SOFA_2);
+        }
         this.updateTutorialUI();
-      } else if (this.currentStep === TutorialStep.BUY_SOFA && (activeBranch.waitingSofasCount || 1) >= 2) {
-        this.saveTutorialStep(TutorialStep.EARN_FOR_EXPANSION);
+      } else if (this.currentStep === TutorialStep.BUY_SOFA_2 && (activeBranch.waitingSofasCount || 1) >= 2) {
+        if (cash >= 2500) {
+          this.saveTutorialStep(TutorialStep.OPEN_EQUIPMENT_MENU_PELIN);
+        } else {
+          this.saveTutorialStep(TutorialStep.EARN_FOR_RECEPTIONIST);
+        }
         this.updateTutorialUI();
-      } else if (this.currentStep === TutorialStep.OPEN_NISANTASI_BRANCH && this.stateStore.getState().branches.length >= 2) {
-        this.finishTutorial();
+      } else if (this.currentStep === TutorialStep.BUY_SOFA_3 && (activeBranch.waitingSofasCount || 1) >= 3) {
+        if (cash >= 250) {
+          this.saveTutorialStep(TutorialStep.OPEN_UPGRADES_MARKETING);
+        } else {
+          this.saveTutorialStep(TutorialStep.EARN_FOR_MARKETING);
+        }
+        this.updateTutorialUI();
       }
     });
 
-    // Also bind HUD menu click events directly to advance steps!
+    // Bind HUD menu click events directly to advance steps!
     document.getElementById('btn-employees')?.addEventListener('click', () => {
       if (this.currentStep === TutorialStep.OPEN_EQUIPMENT_MENU_CANSU) {
         this.saveTutorialStep(TutorialStep.HIRE_CANSU);
-        this.updateTutorialUI();
-      } else if (this.currentStep === TutorialStep.OPEN_EQUIPMENT_MENU_TRAIN) {
-        this.saveTutorialStep(TutorialStep.TRAIN_CANSU);
         this.updateTutorialUI();
       } else if (this.currentStep === TutorialStep.OPEN_EQUIPMENT_MENU_PELIN) {
         this.saveTutorialStep(TutorialStep.HIRE_RECEPTIONIST);
@@ -360,23 +334,9 @@ export class TutorialManager {
       }
     });
 
-    document.getElementById('btn-products')?.addEventListener('click', () => {
-      if (this.currentStep === TutorialStep.OPEN_PRODUCTS_MENU) {
-        this.saveTutorialStep(TutorialStep.BUY_SHAMPOO_STOCK);
-        this.updateTutorialUI();
-      }
-    });
-
     document.getElementById('btn-upgrades')?.addEventListener('click', () => {
-      if (this.currentStep === TutorialStep.OPEN_UPGRADES_EXPANSION) {
-        this.saveTutorialStep(TutorialStep.BUY_EXPANSION);
-        this.updateTutorialUI();
-      }
-    });
-
-    document.getElementById('btn-marketing')?.addEventListener('click', () => {
-      if (this.currentStep === TutorialStep.OPEN_FRANCHISE_MENU) {
-        this.saveTutorialStep(TutorialStep.OPEN_NISANTASI_BRANCH);
+      if (this.currentStep === TutorialStep.OPEN_UPGRADES_MARKETING) {
+        this.saveTutorialStep(TutorialStep.BUY_MARKETING);
         this.updateTutorialUI();
       }
     });
@@ -386,42 +346,34 @@ export class TutorialManager {
     if (this.currentStep === TutorialStep.COLLECT_CASH_DESK && cash > 0) {
       if (cash >= 2000) {
         this.isDismissed = false;
-        this.saveTutorialStep(TutorialStep.BUY_SECOND_STATION);
+        this.saveTutorialStep(TutorialStep.OPEN_EQUIPMENT_MENU_CANSU);
       } else {
-        this.saveTutorialStep(TutorialStep.EARN_FOR_SECOND_STATION);
+        this.saveTutorialStep(TutorialStep.EARN_FOR_HIRE_CANSU);
       }
-      this.updateTutorialUI();
-    } else if (this.currentStep === TutorialStep.EARN_FOR_SECOND_STATION && cash >= 2000) {
-      this.isDismissed = false;
-      this.saveTutorialStep(TutorialStep.BUY_SECOND_STATION);
       this.updateTutorialUI();
     } else if (this.currentStep === TutorialStep.EARN_FOR_HIRE_CANSU && cash >= 2000) {
       this.isDismissed = false;
       this.saveTutorialStep(TutorialStep.OPEN_EQUIPMENT_MENU_CANSU);
       this.updateTutorialUI();
-    } else if (this.currentStep === TutorialStep.EARN_FOR_TRAIN_CANSU && cash >= 250) {
+    } else if (this.currentStep === TutorialStep.EARN_FOR_SECOND_STATION && cash >= 2000) {
       this.isDismissed = false;
-      this.saveTutorialStep(TutorialStep.OPEN_EQUIPMENT_MENU_TRAIN);
+      this.saveTutorialStep(TutorialStep.BUY_SECOND_STATION);
+      this.updateTutorialUI();
+    } else if (this.currentStep === TutorialStep.EARN_FOR_SOFA_2 && cash >= 800) {
+      this.isDismissed = false;
+      this.saveTutorialStep(TutorialStep.BUY_SOFA_2);
       this.updateTutorialUI();
     } else if (this.currentStep === TutorialStep.EARN_FOR_RECEPTIONIST && cash >= 2500) {
       this.isDismissed = false;
       this.saveTutorialStep(TutorialStep.OPEN_EQUIPMENT_MENU_PELIN);
       this.updateTutorialUI();
-    } else if (this.currentStep === TutorialStep.EARN_FOR_SHAMPOO_DEPOT && cash >= 150) {
+    } else if (this.currentStep === TutorialStep.EARN_FOR_SOFA_3 && cash >= 2500) {
       this.isDismissed = false;
-      this.saveTutorialStep(TutorialStep.OPEN_PRODUCTS_MENU);
+      this.saveTutorialStep(TutorialStep.BUY_SOFA_3);
       this.updateTutorialUI();
-    } else if (this.currentStep === TutorialStep.EARN_FOR_SOFA && cash >= 800) {
+    } else if (this.currentStep === TutorialStep.EARN_FOR_MARKETING && cash >= 250) {
       this.isDismissed = false;
-      this.saveTutorialStep(TutorialStep.BUY_SOFA);
-      this.updateTutorialUI();
-    } else if (this.currentStep === TutorialStep.EARN_FOR_EXPANSION && cash >= 8000) {
-      this.isDismissed = false;
-      this.saveTutorialStep(TutorialStep.OPEN_UPGRADES_EXPANSION);
-      this.updateTutorialUI();
-    } else if (this.currentStep === TutorialStep.EARN_FOR_NISANTASI_BRANCH && cash >= 10000) {
-      this.isDismissed = false;
-      this.saveTutorialStep(TutorialStep.OPEN_FRANCHISE_MENU);
+      this.saveTutorialStep(TutorialStep.OPEN_UPGRADES_MARKETING);
       this.updateTutorialUI();
     }
   }
@@ -495,20 +447,9 @@ export class TutorialManager {
         isReady = true;
         break;
 
-      case TutorialStep.EARN_FOR_SECOND_STATION:
-        const c3 = Math.min(currentCash, 2000);
-        questText = `🎯 2. Kuaför Standı İçin ₺2,000 Biriktir (₺${c3} / ₺2,000)`;
-        isReady = currentCash >= 2000;
-        break;
-
-      case TutorialStep.BUY_SECOND_STATION:
-        questText = '✂️ ₺2,000 Birikti! Haritadaki Kilitli 2. Standı Satın Al (₺2,000)';
-        isReady = true;
-        break;
-
       case TutorialStep.EARN_FOR_HIRE_CANSU:
-        const c5 = Math.min(currentCash, 2000);
-        questText = `🎯 Cansu A. (1. Kuaför) İçin ₺2,000 Biriktir (₺${c5} / ₺2,000)`;
+        const c3 = Math.min(currentCash, 2000);
+        questText = `🎯 1. Kuaför (Cansu A.) İçin ₺2,000 Biriktir (₺${c3} / ₺2,000)`;
         isReady = currentCash >= 2000;
         break;
 
@@ -522,25 +463,31 @@ export class TutorialManager {
         isReady = true;
         break;
 
-      case TutorialStep.EARN_FOR_TRAIN_CANSU:
-        const c8 = Math.min(currentCash, 250);
-        questText = `🎯 Cansu A. Seviye 2 Eğitimi İçin ₺250 Biriktir (₺${c8} / ₺250)`;
-        isReady = currentCash >= 250;
+      case TutorialStep.EARN_FOR_SECOND_STATION:
+        const c6 = Math.min(currentCash, 2000);
+        questText = `🎯 2. Kuaför Standı İçin ₺2,000 Biriktir (₺${c6} / ₺2,000)`;
+        isReady = currentCash >= 2000;
         break;
 
-      case TutorialStep.OPEN_EQUIPMENT_MENU_TRAIN:
-        questText = '🎓 ₺250 Birikti! "Ekip" Butonuna Tıklayarak Menüyü Aç!';
+      case TutorialStep.BUY_SECOND_STATION:
+        questText = '✂️ ₺2,000 Birikti! Haritadaki Kilitli 2. Standı Satın Al (₺2,000)';
         isReady = true;
         break;
 
-      case TutorialStep.TRAIN_CANSU:
-        questText = '🎓 "Seviye 2\'ye Eğit (₺250)" Butonuna Tıklayarak Cansu\'yu Eğit!';
+      case TutorialStep.EARN_FOR_SOFA_2:
+        const c8 = Math.min(currentCash, 800);
+        questText = `🛋️ 2. Bekleme Koltuğu İçin ₺800 Biriktir (₺${c8} / ₺800)`;
+        isReady = currentCash >= 800;
+        break;
+
+      case TutorialStep.BUY_SOFA_2:
+        questText = '🛋️ ₺800 Birikti! Haritadaki Kilitli 2. Bekleme Koltuğunu Satın Al (₺800)';
         isReady = true;
         break;
 
       case TutorialStep.EARN_FOR_RECEPTIONIST:
-        const c11 = Math.min(currentCash, 2500);
-        questText = `🎯 Pelin K. (Kasiyer) İçin ₺2,500 Biriktir (₺${c11} / ₺2,500)`;
+        const c10 = Math.min(currentCash, 2500);
+        questText = `🎯 Pelin K. (Kasiyer) İçin ₺2,500 Biriktir (₺${c10} / ₺2,500)`;
         isReady = currentCash >= 2500;
         break;
 
@@ -554,67 +501,35 @@ export class TutorialManager {
         isReady = true;
         break;
 
-      case TutorialStep.EARN_FOR_SHAMPOO_DEPOT:
-        const c14 = Math.min(currentCash, 150);
-        questText = `📦 Depo Şampuan Stok Siparişi İçin ₺150 Biriktir (₺${c14} / ₺150)`;
-        isReady = currentCash >= 150;
+      case TutorialStep.EARN_FOR_SOFA_3:
+        const c13 = Math.min(currentCash, 2500);
+        questText = `🛋️ 3. Bekleme Koltuğu İçin ₺2,500 Biriktir (₺${c13} / ₺2,500)`;
+        isReady = currentCash >= 2500;
         break;
 
-      case TutorialStep.OPEN_PRODUCTS_MENU:
-        questText = '📦 ₺150 Birikti! "Stok" Butonuna Tıklayarak Depo Menüyü Aç!';
+      case TutorialStep.BUY_SOFA_3:
+        questText = '🛋️ ₺2,500 Birikti! Haritadaki Kilitli 3. Bekleme Koltuğunu Satın Al (₺2,500)';
         isReady = true;
         break;
 
-      case TutorialStep.BUY_SHAMPOO_STOCK:
-        questText = '📦 "+50 Stok Sipariş Et (₺150)" Butonuna Tıklayarak Depoyu Doldur!';
+      case TutorialStep.EARN_FOR_MARKETING:
+        const c15 = Math.min(currentCash, 250);
+        questText = `📢 Sosyal Medya Reklamı İçin ₺250 Biriktir (₺${c15} / ₺250)`;
+        isReady = currentCash >= 250;
+        break;
+
+      case TutorialStep.OPEN_UPGRADES_MARKETING:
+        questText = '📢 ₺250 Birikti! "Geliştir" Butonuna Tıklayarak Menüyü Aç!';
         isReady = true;
         break;
 
-      case TutorialStep.EARN_FOR_SOFA:
-        const c17 = Math.min(currentCash, 800);
-        questText = `🛋️ 2. Bekleme Koltuğu İçin ₺800 Biriktir (₺${c17} / ₺800)`;
-        isReady = currentCash >= 800;
-        break;
-
-      case TutorialStep.BUY_SOFA:
-        questText = '🛋️ ₺800 Birikti! Haritadaki Kilitli Bekleme Koltuğunu Satın Al (₺800)';
-        isReady = true;
-        break;
-
-      case TutorialStep.EARN_FOR_EXPANSION:
-        const c19 = Math.min(currentCash, 8000);
-        questText = `📐 Salon Alanı Büyütme İçin ₺8,000 Biriktir (₺${c19} / ₺8,000)`;
-        isReady = currentCash >= 8000;
-        break;
-
-      case TutorialStep.OPEN_UPGRADES_EXPANSION:
-        questText = '📐 ₺8,000 Birikti! "Geliştir" Butonuna Tıklayarak Menüyü Aç!';
-        isReady = true;
-        break;
-
-      case TutorialStep.BUY_EXPANSION:
-        questText = '📐 "Salon Alanı Büyütme (₺8,000)" Alarak 3. Kuaför Standını Aç!';
-        isReady = true;
-        break;
-
-      case TutorialStep.EARN_FOR_NISANTASI_BRANCH:
-        const c22 = Math.min(currentCash, 10000);
-        questText = `🏰 2. Nişantaşı Şubesi İçin ₺10,000 Biriktir (₺${c22} / ₺10,000)`;
-        isReady = currentCash >= 10000;
-        break;
-
-      case TutorialStep.OPEN_FRANCHISE_MENU:
-        questText = '🏰 ₺10,000 Birikti! "Şubeler" Butonuna Tıklayarak Menüyü Aç!';
-        isReady = true;
-        break;
-
-      case TutorialStep.OPEN_NISANTASI_BRANCH:
-        questText = '🏰 Nişantaşı 2. Lüks Şubeyi Kur (₺10,000)';
+      case TutorialStep.BUY_MARKETING:
+        questText = '📱 "Sosyal Medya Reklamları (₺250)" Alarak Müşteri Akışını Artır!';
         isReady = true;
         break;
 
       default:
-        questText = '🎉 Tebrikler! Tüm Salon Görevlerini Tamamladınız!';
+        questText = '🎉 Tebrikler! Tüm Başlangıç Görevlerini Tamamladınız!';
         isReady = true;
         break;
     }
@@ -651,14 +566,12 @@ export class TutorialManager {
     // Hide spotlight ring during EARN/gameplay steps so controls are completely unobscured
     const isEarnStep =
       this.currentStep === TutorialStep.MINIGAME_GUIDANCE ||
-      this.currentStep === TutorialStep.EARN_FOR_SECOND_STATION ||
       this.currentStep === TutorialStep.EARN_FOR_HIRE_CANSU ||
-      this.currentStep === TutorialStep.EARN_FOR_TRAIN_CANSU ||
+      this.currentStep === TutorialStep.EARN_FOR_SECOND_STATION ||
+      this.currentStep === TutorialStep.EARN_FOR_SOFA_2 ||
       this.currentStep === TutorialStep.EARN_FOR_RECEPTIONIST ||
-      this.currentStep === TutorialStep.EARN_FOR_SHAMPOO_DEPOT ||
-      this.currentStep === TutorialStep.EARN_FOR_SOFA ||
-      this.currentStep === TutorialStep.EARN_FOR_EXPANSION ||
-      this.currentStep === TutorialStep.EARN_FOR_NISANTASI_BRANCH;
+      this.currentStep === TutorialStep.EARN_FOR_SOFA_3 ||
+      this.currentStep === TutorialStep.EARN_FOR_MARKETING;
 
     if (isEarnStep) {
       this.spotlightRing.style.display = 'none';
@@ -704,7 +617,7 @@ export class TutorialManager {
       this.spotlightRing.style.top = `${screenY - 65}px`;
       this.spotlightRing.style.width = `90px`;
       this.spotlightRing.style.height = `90px`;
-    } else if (this.currentStep === TutorialStep.BUY_SOFA && renderer) {
+    } else if (this.currentStep === TutorialStep.BUY_SOFA_2 && renderer) {
       this.spotlightRing.style.display = 'block';
       const p = renderer.gridToScreen(8 + branchOffset, 14);
       const screenX = canvasRect.left + p.x;
@@ -713,30 +626,28 @@ export class TutorialManager {
       this.spotlightRing.style.top = `${screenY - 65}px`;
       this.spotlightRing.style.width = `90px`;
       this.spotlightRing.style.height = `90px`;
+    } else if (this.currentStep === TutorialStep.BUY_SOFA_3 && renderer) {
+      this.spotlightRing.style.display = 'block';
+      const p = renderer.gridToScreen(13 + branchOffset, 14);
+      const screenX = canvasRect.left + p.x;
+      const screenY = canvasRect.top + p.y;
+      this.spotlightRing.style.left = `${screenX - 45}px`;
+      this.spotlightRing.style.top = `${screenY - 65}px`;
+      this.spotlightRing.style.width = `90px`;
+      this.spotlightRing.style.height = `90px`;
     } else if (
       this.currentStep === TutorialStep.OPEN_EQUIPMENT_MENU_CANSU ||
-      this.currentStep === TutorialStep.OPEN_EQUIPMENT_MENU_TRAIN ||
       this.currentStep === TutorialStep.OPEN_EQUIPMENT_MENU_PELIN
     ) {
       this.highlightElementById('btn-employees');
     } else if (this.currentStep === TutorialStep.HIRE_CANSU) {
       this.highlightElementById('btn-hire-stylist-1');
-    } else if (this.currentStep === TutorialStep.TRAIN_CANSU) {
-      this.highlightElementByQuery('[id^="btn-lvl-"]');
     } else if (this.currentStep === TutorialStep.HIRE_RECEPTIONIST) {
       this.highlightElementById('btn-hire-receptionist');
-    } else if (this.currentStep === TutorialStep.OPEN_PRODUCTS_MENU) {
-      this.highlightElementById('btn-products');
-    } else if (this.currentStep === TutorialStep.BUY_SHAMPOO_STOCK) {
-      this.highlightElementById('btn-restock-50');
-    } else if (this.currentStep === TutorialStep.OPEN_UPGRADES_EXPANSION) {
+    } else if (this.currentStep === TutorialStep.OPEN_UPGRADES_MARKETING) {
       this.highlightElementById('btn-upgrades');
-    } else if (this.currentStep === TutorialStep.BUY_EXPANSION) {
-      this.highlightElementByQuery('[data-id="salon_expansion"]');
-    } else if (this.currentStep === TutorialStep.OPEN_FRANCHISE_MENU) {
-      this.highlightElementById('btn-marketing');
-    } else if (this.currentStep === TutorialStep.OPEN_NISANTASI_BRANCH) {
-      this.highlightElementById('btn-open-franchise');
+    } else if (this.currentStep === TutorialStep.BUY_MARKETING) {
+      this.highlightElementByQuery('[data-id="marketing_boost"]');
     } else {
       this.spotlightRing.style.display = 'none';
     }
@@ -780,7 +691,7 @@ export class TutorialManager {
 
     this.eventBus.emit(
       GameEventType.NOTIFICATION_TRIGGERED,
-      `🎉 TEBRİKLER! Tüm Eğitimi Başarıyla Tamamladın! 🏰 2. Nişantaşı Lüks Şubesi Açıldı! +₺500 Bonus & 25 💎 Elmas Kazandın!`
+      `🎉 TEBRİKLER! Tüm Başlangıç Görevlerini Başarıyla Tamamladın! +₺500 Bonus & 25 💎 Elmas Kazandın!`
     );
   }
 }

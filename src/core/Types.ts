@@ -65,7 +65,7 @@ export interface IUpgradeNode {
   name: string;
   description: string;
   icon: string;
-  category: UpgradeCategory;
+  category?: UpgradeCategory;
   level: number;
   maxLevel: number;
   baseCost: number;
@@ -73,7 +73,7 @@ export interface IUpgradeNode {
   requiredPlayerLevel: number;
   prerequisiteUpgradeId?: string;
   prerequisiteDescription?: string;
-  effects: {
+  effects?: {
     incomeMultiplier?: number;
     serviceSpeedBonus?: number;
     patienceBonus?: number;

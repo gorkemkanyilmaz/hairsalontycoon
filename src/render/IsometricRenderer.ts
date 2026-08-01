@@ -17,11 +17,14 @@ export interface IRenderableEntity {
   draw: (ctx: CanvasRenderingContext2D, renderer: IsometricRenderer) => void;
 }
 
+import grassTileUrl from '../../assets/grass_tile.png';
+
 export class IsometricRenderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private stateStore: StateStore;
   private eventBus: EventBus;
+  private grassTileImg: HTMLImageElement | null = null;
 
   // 24x18 Luxury Commercial Salon Grid (1.5x Spacious Grid Expansion)
   private gridWidth: number = 24;
@@ -50,8 +53,8 @@ export class IsometricRenderer {
 
   private hoveredGridPos: IIsoPoint | null = null;
 
-  // Horizontal tile spacing between salon branches (28 tiles shift per branch)
-  private readonly BRANCH_SPACING = 28;
+  // Horizontal tile spacing between salon branches (30 tiles shift per branch)
+  private readonly BRANCH_SPACING = 30;
 
   constructor(containerId: string) {
     this.stateStore = StateStore.getInstance();
@@ -59,6 +62,12 @@ export class IsometricRenderer {
       this.centerCameraOnBranch(branchIdx);
     });
     this.eventBus = EventBus.getInstance();
+
+    const gImg = new Image();
+    gImg.src = grassTileUrl;
+    gImg.onload = () => {
+      this.grassTileImg = gImg;
+    };
 
     this.canvas = document.createElement('canvas');
     this.ctx = this.canvas.getContext('2d')!;
@@ -79,6 +88,27 @@ export class IsometricRenderer {
     this.centerCamera();
   }
 
+  public calculateOptimalZoom(): number {
+    if (window.innerWidth < 600) {
+      // Isometric room bounding dimensions for a 24x18 tile room
+      // Isometric room width = (gridWidth + gridHeight) * (tileWidth / 2) = (24 + 18) * 32 = 1344px
+      // Isometric room height = (gridWidth + gridHeight) * (tileHeight / 2) + 120 = 792px
+      const isoRoomW = (this.gridWidth + this.gridHeight) * (this.tileWidth / 2);
+      const isoRoomH = (this.gridWidth + this.gridHeight) * (this.tileHeight / 2) + 120;
+
+      // Mobile portrait safe padding: width 94%, available height innerHeight - 160px (top HUD + bottom action buttons)
+      const availableW = window.innerWidth * 0.94;
+      const availableH = Math.max(320, window.innerHeight - 160);
+
+      const fitZoomW = availableW / isoRoomW;
+      const fitZoomH = availableH / isoRoomH;
+
+      return Math.max(0.22, Math.min(0.70, Math.min(fitZoomW, fitZoomH)));
+    } else {
+      return 0.85;
+    }
+  }
+
   private resizeCanvas(): void {
     const dpr = window.devicePixelRatio || 1;
     this.canvas.width = window.innerWidth * dpr;
@@ -86,23 +116,13 @@ export class IsometricRenderer {
     this.canvas.style.width = `${window.innerWidth}px`;
     this.canvas.style.height = `${window.innerHeight}px`;
 
-    // Straight Rectangular Auto-Fit Zoom
-    if (window.innerWidth < 600) {
-      const roomW = this.gridWidth * this.tileWidth;
-      const roomH = this.gridHeight * this.tileHeight;
-      const zoomW = (window.innerWidth * 0.92) / roomW;
-      const zoomH = (window.innerHeight * 0.70) / roomH;
-      this.zoom = Math.max(0.40, Math.min(0.85, Math.min(zoomW, zoomH)));
-    } else {
-      this.zoom = 0.85;
-    }
-
+    this.zoom = this.calculateOptimalZoom();
     this.centerCamera();
   }
 
   public centerCamera(): void {
     if (isNaN(this.zoom) || !isFinite(this.zoom) || this.zoom <= 0) {
-      this.zoom = window.innerWidth < 600 ? 0.50 : 0.85;
+      this.zoom = this.calculateOptimalZoom();
     }
 
     const activeBranchIdx = this.stateStore.getState().activeBranchIndex || 0;
@@ -110,13 +130,15 @@ export class IsometricRenderer {
   }
 
   public centerCameraOnBranch(branchIdx: number): void {
-    if (isNaN(this.zoom) || !isFinite(this.zoom) || this.zoom <= 0) {
-      this.zoom = window.innerWidth < 600 ? 0.50 : 0.85;
-    }
+    this.zoom = this.calculateOptimalZoom();
 
-    const branchOffsetX = branchIdx * this.BRANCH_SPACING;
+    const col = branchIdx % 3;
+    const row = Math.floor(branchIdx / 3);
+    const branchOffsetX = col * 30;
+    const branchOffsetY = row * 28;
+
     const roomCenterX = (branchOffsetX + this.gridWidth / 2) * this.tileWidth * this.zoom;
-    const roomCenterY = (this.gridHeight / 2) * this.tileHeight * this.zoom;
+    const roomCenterY = (branchOffsetY + this.gridHeight / 2) * this.tileHeight * this.zoom;
 
     this.offsetX = (window.innerWidth / 2) - roomCenterX;
     this.offsetY = (window.innerHeight / 2) - roomCenterY + 15 * this.zoom;
@@ -125,7 +147,8 @@ export class IsometricRenderer {
 
   public zoomAt(newZoom: number, focusX: number = window.innerWidth / 2, focusY: number = window.innerHeight / 2): void {
     const oldZoom = this.zoom;
-    const clampedZoom = Math.max(0.08, Math.min(2.5, newZoom));
+    const minZ = window.innerWidth < 600 ? 0.18 : 0.08;
+    const clampedZoom = Math.max(minZ, Math.min(2.5, newZoom));
     if (clampedZoom === oldZoom) return;
 
     const zoomRatio = clampedZoom / oldZoom;
@@ -139,19 +162,27 @@ export class IsometricRenderer {
 
   private clampCamera(): void {
     if (isNaN(this.zoom) || !isFinite(this.zoom) || this.zoom <= 0) {
-      this.zoom = window.innerWidth < 600 ? 0.50 : 0.85;
+      this.zoom = this.calculateOptimalZoom();
     }
-    this.zoom = Math.max(0.08, Math.min(2.5, this.zoom));
+    const minZ = window.innerWidth < 600 ? 0.18 : 0.08;
+    this.zoom = Math.max(minZ, Math.min(2.5, this.zoom));
 
     const branchCount = Math.max(1, this.stateStore.getState().branches ? this.stateStore.getState().branches.length : 1);
-    const maxGridX = branchCount * this.BRANCH_SPACING;
-    const totalWorldWidth = maxGridX * this.tileWidth * this.zoom;
+    const colsCount = Math.min(branchCount, 3);
+    const rowsCount = Math.ceil(branchCount / 3);
+
+    const totalWorldWidth = (colsCount * 30 + 10) * this.tileWidth * this.zoom;
+    const totalWorldHeight = (rowsCount * 28 + 10) * this.tileHeight * this.zoom;
 
     const minOffsetX = window.innerWidth - totalWorldWidth - 500;
     const maxOffsetX = 500;
 
     this.offsetX = Math.max(minOffsetX, Math.min(maxOffsetX, this.offsetX));
-    this.offsetY = Math.max(-1000, Math.min(window.innerHeight + 500, this.offsetY));
+    this.offsetY = Math.max(-1000 - totalWorldHeight, Math.min(window.innerHeight + 500, this.offsetY));
+  }
+
+  public get zoomLevel(): number {
+    return this.zoom;
   }
 
   public zoomIn(): void {
@@ -167,6 +198,10 @@ export class IsometricRenderer {
       x: this.offsetX + gx * this.tileWidth * this.zoom,
       y: this.offsetY + gy * this.tileHeight * this.zoom
     };
+  }
+
+  public getCanvasBoundingClientRect(): DOMRect {
+    return this.canvas.getBoundingClientRect();
   }
 
   public screenToGrid(screenX: number, screenY: number): IIsoPoint {
@@ -198,7 +233,7 @@ export class IsometricRenderer {
       const distBody = Math.hypot(clickX - bodyX, clickY - bodyY);
       const distBubble = Math.hypot(clickX - bodyX, clickY - bubbleY);
 
-      const hitRadius = Math.max(50, 65 * this.zoom);
+      const hitRadius = Math.max(25, 38 * this.zoom);
 
       if (distBody <= hitRadius || distBubble <= hitRadius) {
         return c;
@@ -360,6 +395,8 @@ export class IsometricRenderer {
       const dpr = window.devicePixelRatio || 1;
       this.ctx.save();
       this.ctx.scale(dpr, dpr);
+      this.ctx.imageSmoothingEnabled = true;
+      this.ctx.imageSmoothingQuality = 'high';
 
       // Pure Lush Green Grass Backdrop (Zero Black Void!)
       this.ctx.fillStyle = '#1c3a26';
@@ -403,34 +440,60 @@ export class IsometricRenderer {
     }
   }
 
-  // Draw pure lush green grass ground around the salon interior
+  // Draw floral green grass ground texture around the salon interior
   private drawEnvironmentGround(): void {
     const state = this.stateStore.getState();
     const branches = state.branches ? state.branches.length : 1;
+    const colsCount = Math.min(branches, 3);
+    const rowsCount = Math.ceil(branches / 3);
 
     const minGX = -35;
-    const maxGX = (branches - 1) * this.BRANCH_SPACING + this.gridWidth + 35;
+    const maxGX = colsCount * 30 + 35;
     const minGY = -30;
-    const maxGY = 45;
+    const maxGY = rowsCount * 28 + 35;
 
     const isSalonInterior = (gx: number, gy: number): boolean => {
       for (let b = 0; b < branches; b++) {
-        const off = b * this.BRANCH_SPACING;
-        const lx = gx - off;
-        if (lx >= 0 && lx < this.gridWidth && gy >= 0 && gy < this.gridHeight) return true;
+        const col = b % 3;
+        const row = Math.floor(b / 3);
+        const offX = col * 30;
+        const offY = row * 28;
+        const lx = gx - offX;
+        const ly = gy - offY;
+        if (lx >= 0 && lx < this.gridWidth && ly >= 0 && ly < this.gridHeight) return true;
       }
       return false;
     };
 
     const grassA = '#1c3a26';
     const grassB = '#1a3524';
+    const tw = Math.max(2, Math.round(this.tileWidth * this.zoom));
+    const th = Math.max(2, Math.round(this.tileHeight * this.zoom));
 
-    // Pure green grass background everywhere outside the salon interior
+    const useImg = this.grassTileImg && this.grassTileImg.complete && this.grassTileImg.naturalWidth > 0;
+    const imgW = useImg ? this.grassTileImg!.naturalWidth : 0;
+    const imgH = useImg ? this.grassTileImg!.naturalHeight : 0;
+    // Map 1 texture repeat over 6x6 tile blocks so flowers are 6x larger & clearly visible at normal zoom
+    const tilesPerRepeat = 6;
+    const srcW = imgW / tilesPerRepeat;
+    const srcH = imgH / tilesPerRepeat;
+
+    // Floral grass background everywhere outside the salon interior
     for (let gx = minGX; gx <= maxGX; gx++) {
       for (let gy = minGY; gy <= maxGY; gy++) {
         if (isSalonInterior(gx, gy)) continue;
-        const fill = (gx + gy) % 2 === 0 ? grassA : grassB;
-        this.drawFlatTile(gx, gy, fill);
+
+        if (useImg) {
+          const p = this.gridToScreen(gx, gy);
+          const tileX = (gx % tilesPerRepeat + tilesPerRepeat) % tilesPerRepeat;
+          const tileY = (gy % tilesPerRepeat + tilesPerRepeat) % tilesPerRepeat;
+          const sx = tileX * srcW;
+          const sy = tileY * srcH;
+          this.ctx.drawImage(this.grassTileImg!, sx, sy, srcW, srcH, p.x, p.y, tw + 0.8, th + 0.8);
+        } else {
+          const fill = (gx + gy) % 2 === 0 ? grassA : grassB;
+          this.drawFlatTile(gx, gy, fill);
+        }
       }
     }
   }
@@ -585,11 +648,26 @@ export class IsometricRenderer {
     const canvasH = this.canvas.height;
 
     for (let b = 0; b < branches; b++) {
-      const offsetX = b * this.BRANCH_SPACING;
+      const col = b % 3;
+      const row = Math.floor(b / 3);
+      const offsetX = col * 30;
+      const offsetY = row * 28;
+
+      // Branch Frustum Culling Check
+      const pTop = this.gridToScreen(offsetX, offsetY);
+      const pBottom = this.gridToScreen(offsetX + 24, offsetY + 18);
+      const minX = Math.min(pTop.x, pBottom.x) - 250 * this.zoom;
+      const maxX = Math.max(pTop.x, pBottom.x) + 250 * this.zoom;
+      const minY = Math.min(pTop.y, pBottom.y) - 250 * this.zoom;
+      const maxY = Math.max(pTop.y, pBottom.y) + 250 * this.zoom;
+
+      if (maxX < 0 || minX > canvasW || maxY < 0 || minY > canvasH) {
+        continue; // Skip offscreen branch
+      }
 
       for (let x = 0; x < this.gridWidth; x++) {
         for (let y = 0; y < this.gridHeight; y++) {
-          const p = this.gridToScreen(x + offsetX, y);
+          const p = this.gridToScreen(x + offsetX, y + offsetY);
 
           // Culling check for high performance
           if (p.x + 60 * this.zoom < 0 || p.x > canvasW || p.y + 40 * this.zoom < 0 || p.y > canvasH) {
@@ -597,8 +675,10 @@ export class IsometricRenderer {
           }
 
           const isAlt = (x + y) % 2 === 0;
-          const tileSprite = spriteMgr.getParquetTileSprite(isAlt, this.zoom);
-          this.ctx.drawImage(tileSprite, p.x, p.y);
+          const tileSprite = spriteMgr.getParquetTileSprite(isAlt, this.zoom, x, y);
+          const tw = Math.max(2, Math.round(this.tileWidth * this.zoom));
+          const th = Math.max(2, Math.round(this.tileHeight * this.zoom));
+          this.ctx.drawImage(tileSprite, p.x, p.y, tw + 0.8, th + 0.8);
 
           // Red Carpet Runway on Tile y === 6 during Fashion Week Gala!
           if (isFashionEvent && x >= 4 && x <= 15 && y === 6) {
@@ -612,12 +692,92 @@ export class IsometricRenderer {
       }
 
       // Draw Branch Banner Marquee for Branch #2, #3, #4...
-      const bp = this.gridToScreen(12 + offsetX, 0);
+      const bp = this.gridToScreen(12 + offsetX, 0 + offsetY);
       if (bp.x > -200 && bp.x < canvasW + 200) {
         this.ctx.fillStyle = '#fbbf24';
         this.ctx.font = `bold ${Math.round(14 * this.zoom)}px Outfit, sans-serif`;
         this.ctx.textAlign = 'center';
         this.ctx.fillText(`🏰 Şube #${b + 1}: ${state.branches[b]?.salonName || 'Lüks Kuaför'} (+%${b * 50} Kazanç)`, bp.x, bp.y - 120 * this.zoom);
+      }
+
+      // Dynamic Construction Banner & Diamond Speedup Pill (HUGE & PROMINENT COVER)
+      const bData = state.branches[b];
+      if (bData && bData.constructionEndsTimestamp && Date.now() < bData.constructionEndsTimestamp) {
+        const remainingSec = Math.max(0, Math.ceil((bData.constructionEndsTimestamp - Date.now()) / 1000));
+        const neededDiamonds = Math.max(1, Math.ceil((remainingSec / 3600) * 50));
+        const mins = Math.floor(remainingSec / 60);
+        const secs = remainingSec % 60;
+        const timeStr = mins >= 60 ? `${Math.floor(mins / 60)}s ${mins % 60}dk` : `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+        const cp = this.gridToScreen(12 + offsetX, 8 + offsetY);
+        const bw = 560 * this.zoom;
+        const bh = 210 * this.zoom;
+        const bx = cp.x - bw / 2;
+        const by = cp.y - bh / 2 - 20 * this.zoom;
+
+        this.ctx.save();
+        // Drop shadow for 3D depth
+        this.ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+        this.ctx.shadowBlur = 25 * this.zoom;
+        this.ctx.shadowOffsetY = 10 * this.zoom;
+
+        // Dark translucent background with gold border
+        this.ctx.fillStyle = 'rgba(18, 10, 32, 0.96)';
+        this.ctx.beginPath();
+        this.ctx.roundRect(bx, by, bw, bh, 22 * this.zoom);
+        this.ctx.fill();
+        this.ctx.strokeStyle = '#fbbf24';
+        this.ctx.lineWidth = 4 * this.zoom;
+        this.ctx.stroke();
+
+        // Reset shadow for crisp text
+        this.ctx.shadowColor = 'transparent';
+
+        // Caution Header Strip
+        this.ctx.fillStyle = '#fbbf24';
+        this.ctx.beginPath();
+        this.ctx.roundRect(bx + 6 * this.zoom, by + 6 * this.zoom, bw - 12 * this.zoom, 32 * this.zoom, [16 * this.zoom, 16 * this.zoom, 0, 0]);
+        this.ctx.fill();
+
+        this.ctx.fillStyle = '#0f172a';
+        this.ctx.font = `900 ${Math.round(14 * this.zoom)}px Outfit, sans-serif`;
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(`🚧 YENİ ŞUBE İNŞAAT SAHASI — GİRİŞ YASAKTIR 🚧`, cp.x, by + 27 * this.zoom);
+
+        // Main Title
+        this.ctx.fillStyle = '#fbbf24';
+        this.ctx.font = `900 ${Math.round(26 * this.zoom)}px Outfit, sans-serif`;
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(`🚧 İNŞAAT DEVAM EDİYOR 🚧`, cp.x, by + 76 * this.zoom);
+
+        // Dynamic Timer Display
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = `bold ${Math.round(21 * this.zoom)}px Outfit, sans-serif`;
+        this.ctx.fillText(`⏱️ Kalan Süre: ${timeStr}`, cp.x, by + 115 * this.zoom);
+
+        // Dynamic Diamond Button Pill
+        const btnW = 380 * this.zoom;
+        const btnH = 48 * this.zoom;
+        const btnX = cp.x - btnW / 2;
+        const btnY = by + 142 * this.zoom;
+
+        const btnGrad = this.ctx.createLinearGradient(btnX, btnY, btnX + btnW, btnY + btnH);
+        btnGrad.addColorStop(0, '#a855f7');
+        btnGrad.addColorStop(0.5, '#6366f1');
+        btnGrad.addColorStop(1, '#3b82f6');
+        this.ctx.fillStyle = btnGrad;
+        this.ctx.beginPath();
+        this.ctx.roundRect(btnX, btnY, btnW, btnH, 99);
+        this.ctx.fill();
+        this.ctx.strokeStyle = '#fef08a';
+        this.ctx.lineWidth = 2 * this.zoom;
+        this.ctx.stroke();
+
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = `900 ${Math.round(17 * this.zoom)}px Outfit, sans-serif`;
+        this.ctx.fillText(`⚡ 💎${neededDiamonds} ELMAS İLE ANINDA AÇ ⚡`, cp.x, btnY + 31 * this.zoom);
+
+        this.ctx.restore();
       }
     }
   }
@@ -625,22 +785,40 @@ export class IsometricRenderer {
   private drawWalls(): void {
     const state = this.stateStore.getState();
     const branches = state.branches ? state.branches.length : 1;
-    const wallHeight = 110 * this.zoom;
+    const canvasW = this.canvas.width;
+    const canvasH = this.canvas.height;
+    // 1.5x Wall Height (110 * 1.5 = 165)
+    const wallHeight = 165 * this.zoom;
 
     for (let b = 0; b < branches; b++) {
-      const offsetX = b * this.BRANCH_SPACING;
+      const col = b % 3;
+      const row = Math.floor(b / 3);
+      const offsetX = col * 30;
+      const offsetY = row * 28;
 
-      const pTopLeft = this.gridToScreen(0 + offsetX, 0);
-      const pTopRight = this.gridToScreen(this.gridWidth + offsetX, 0);
-      const pBottomLeft = this.gridToScreen(0 + offsetX, this.gridHeight);
-      const pBottomRight = this.gridToScreen(this.gridWidth + offsetX, this.gridHeight);
+      // Branch Frustum Culling Check
+      const pTop = this.gridToScreen(offsetX, offsetY);
+      const pBottom = this.gridToScreen(offsetX + 24, offsetY + 18);
+      const minX = Math.min(pTop.x, pBottom.x) - 250 * this.zoom;
+      const maxX = Math.max(pTop.x, pBottom.x) + 250 * this.zoom;
+      const minY = Math.min(pTop.y, pBottom.y) - 250 * this.zoom;
+      const maxY = Math.max(pTop.y, pBottom.y) + 250 * this.zoom;
 
-      // 1. Long Back Wall (100% Horizontal & Parallel to Header Line)
+      if (maxX < 0 || minX > canvasW || maxY < 0 || minY > canvasH) {
+        continue; // Skip offscreen branch walls
+      }
+
+      const pTopLeft = this.gridToScreen(0 + offsetX, 0 + offsetY);
+      const pTopRight = this.gridToScreen(this.gridWidth + offsetX, 0 + offsetY);
+      const pBottomLeft = this.gridToScreen(0 + offsetX, this.gridHeight + offsetY);
+      const pBottomRight = this.gridToScreen(this.gridWidth + offsetX, this.gridHeight + offsetY);
+
+      // 1. Long Back Wall (100% Horizontal & Parallel to Header Line, extending seamlessly to side wall edges)
       this.ctx.beginPath();
-      this.ctx.moveTo(pTopLeft.x, pTopLeft.y);
-      this.ctx.lineTo(pTopLeft.x, pTopLeft.y - wallHeight);
-      this.ctx.lineTo(pTopRight.x, pTopRight.y - wallHeight);
-      this.ctx.lineTo(pTopRight.x, pTopRight.y);
+      this.ctx.moveTo(pTopLeft.x - 14 * this.zoom, pTopLeft.y);
+      this.ctx.lineTo(pTopLeft.x - 14 * this.zoom, pTopLeft.y - wallHeight);
+      this.ctx.lineTo(pTopRight.x + 14 * this.zoom, pTopRight.y - wallHeight);
+      this.ctx.lineTo(pTopRight.x + 14 * this.zoom, pTopRight.y);
       this.ctx.closePath();
 
       const wallGradBack = this.ctx.createLinearGradient(pTopLeft.x, pTopLeft.y - wallHeight, pTopRight.x, pTopRight.y);
@@ -653,7 +831,7 @@ export class IsometricRenderer {
       this.ctx.lineWidth = 2 * this.zoom;
       this.ctx.stroke();
 
-      // 2. Left Side Wall
+      // 2. Left Side Wall (Fully joined at corner)
       this.ctx.beginPath();
       this.ctx.moveTo(pTopLeft.x, pTopLeft.y);
       this.ctx.lineTo(pTopLeft.x - 14 * this.zoom, pTopLeft.y - wallHeight);
@@ -670,7 +848,7 @@ export class IsometricRenderer {
       this.ctx.lineWidth = 2 * this.zoom;
       this.ctx.stroke();
 
-      // 3. Right Side Wall
+      // 3. Right Side Wall (Fully joined at corner)
       this.ctx.beginPath();
       this.ctx.moveTo(pTopRight.x, pTopRight.y);
       this.ctx.lineTo(pTopRight.x + 14 * this.zoom, pTopRight.y - wallHeight);
@@ -684,18 +862,37 @@ export class IsometricRenderer {
       this.ctx.lineWidth = 2 * this.zoom;
       this.ctx.stroke();
 
-      // Gold Moldings along Back Wall Top Line
+      // 4. Closed Corner Filler Caps (Seals top corner gaps seamlessly)
       this.ctx.beginPath();
-      this.ctx.moveTo(pTopLeft.x, pTopLeft.y - wallHeight);
+      this.ctx.moveTo(pTopLeft.x, pTopLeft.y);
+      this.ctx.lineTo(pTopLeft.x - 14 * this.zoom, pTopLeft.y);
+      this.ctx.lineTo(pTopLeft.x - 14 * this.zoom, pTopLeft.y - wallHeight);
+      this.ctx.lineTo(pTopLeft.x, pTopLeft.y - wallHeight);
+      this.ctx.closePath();
+      this.ctx.fillStyle = '#4c1d95';
+      this.ctx.fill();
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(pTopRight.x, pTopRight.y);
+      this.ctx.lineTo(pTopRight.x + 14 * this.zoom, pTopRight.y);
+      this.ctx.lineTo(pTopRight.x + 14 * this.zoom, pTopRight.y - wallHeight);
       this.ctx.lineTo(pTopRight.x, pTopRight.y - wallHeight);
+      this.ctx.closePath();
+      this.ctx.fillStyle = '#4c1d95';
+      this.ctx.fill();
+
+      // Gold Moldings along Back Wall Top Line (Spans entire top wall width)
+      this.ctx.beginPath();
+      this.ctx.moveTo(pTopLeft.x - 14 * this.zoom, pTopLeft.y - wallHeight);
+      this.ctx.lineTo(pTopRight.x + 14 * this.zoom, pTopRight.y - wallHeight);
       this.ctx.strokeStyle = '#fbbf24';
-      this.ctx.lineWidth = 3 * this.zoom;
+      this.ctx.lineWidth = 3.5 * this.zoom;
       this.ctx.stroke();
 
-      // Paintings on Back Wall
-      this.drawRealisticWallPainting(4 + offsetX, 0, 'RIGHT_WALL_1');
-      this.drawRealisticWallPainting(12 + offsetX, 0, 'RIGHT_WALL_2');
-      this.drawRealisticWallPainting(20 + offsetX, 0, 'LEFT_WALL');
+      // Paintings on Back Wall (Centered safely inside the 1.5x height wall)
+      this.drawRealisticWallPainting(4 + offsetX, 0 + offsetY, 'RIGHT_WALL_1');
+      this.drawRealisticWallPainting(12 + offsetX, 0 + offsetY, 'RIGHT_WALL_2');
+      this.drawRealisticWallPainting(20 + offsetX, 0 + offsetY, 'LEFT_WALL');
     }
   }
 
@@ -703,7 +900,7 @@ export class IsometricRenderer {
     const p = this.gridToScreen(gx, gy);
     const artW = 50 * this.zoom;
     const artH = 40 * this.zoom;
-    const artY = p.y - 100 * this.zoom;
+    const artY = p.y - 105 * this.zoom;
 
     this.ctx.fillStyle = '#fbbf24';
     this.ctx.fillRect(p.x - artW / 2, artY - artH / 2, artW, artH);
@@ -763,6 +960,8 @@ export class IsometricRenderer {
     const spriteMgr = SpriteManager.getInstance();
     const customerMgr = CustomerManager.getInstance();
     const entities: IRenderableEntity[] = [];
+    const canvasW = this.canvas.width;
+    const canvasH = this.canvas.height;
 
     // Environment props (trees, lamps, vacant lots, bench, parked car) around the salon
     this.addEnvironmentEntities(entities);
@@ -771,31 +970,46 @@ export class IsometricRenderer {
 
     // Loop through ALL open branches to render furniture, doors, equipment & poles at offset!
     branches.forEach((bData, bIdx) => {
-      const offsetX = bIdx * 30;
+      const col = bIdx % 3;
+      const row = Math.floor(bIdx / 3);
+      const offsetX = col * 30;
+      const offsetY = row * 28;
+
+      // Branch Frustum Culling Check
+      const pTop = this.gridToScreen(offsetX, offsetY);
+      const pBottom = this.gridToScreen(offsetX + 24, offsetY + 18);
+      const minX = Math.min(pTop.x, pBottom.x) - 250 * this.zoom;
+      const maxX = Math.max(pTop.x, pBottom.x) + 250 * this.zoom;
+      const minY = Math.min(pTop.y, pBottom.y) - 250 * this.zoom;
+      const maxY = Math.max(pTop.y, pBottom.y) + 250 * this.zoom;
+
+      if (maxX < 0 || minX > canvasW || maxY < 0 || minY > canvasH) {
+        return; // Skip offscreen branch entities
+      }
 
       // Plants Decor for Branch bIdx
       entities.push({
-        gridX: 1 + offsetX, gridY: 1, sortKey: 1 + offsetX + 1,
+        gridX: 1 + offsetX, gridY: 1 + offsetY, sortKey: (1 + offsetX) + (1 + offsetY),
         draw: (ctx) => {
-          const p = this.gridToScreen(1 + offsetX, 1);
+          const p = this.gridToScreen(1 + offsetX, 1 + offsetY);
           const plantSprite = spriteMgr.getPottedPlantSprite('MONSTERA', this.zoom);
           ctx.drawImage(plantSprite, p.x - plantSprite.width / 2, p.y - plantSprite.height + 15 * this.zoom);
         }
       });
 
       entities.push({
-        gridX: 22 + offsetX, gridY: 2, sortKey: 22 + offsetX + 2,
+        gridX: 22 + offsetX, gridY: 2 + offsetY, sortKey: (22 + offsetX) + (2 + offsetY),
         draw: (ctx) => {
-          const p = this.gridToScreen(22 + offsetX, 2);
+          const p = this.gridToScreen(22 + offsetX, 2 + offsetY);
           const plantSprite = spriteMgr.getPottedPlantSprite('GOLDEN_PALM', this.zoom);
           ctx.drawImage(plantSprite, p.x - plantSprite.width / 2, p.y - plantSprite.height + 15 * this.zoom);
         }
       });
 
       entities.push({
-        gridX: 10 + offsetX, gridY: 14, sortKey: 10 + offsetX + 14,
+        gridX: 10 + offsetX, gridY: 14 + offsetY, sortKey: (10 + offsetX) + (14 + offsetY),
         draw: (ctx) => {
-          const p = this.gridToScreen(10 + offsetX, 14);
+          const p = this.gridToScreen(10 + offsetX, 14 + offsetY);
           const plantSprite = spriteMgr.getPottedPlantSprite('ROSE_VASE', this.zoom);
           ctx.drawImage(plantSprite, p.x - plantSprite.width / 2, p.y - plantSprite.height + 15 * this.zoom);
         }
@@ -803,7 +1017,7 @@ export class IsometricRenderer {
 
       // Sofas for Branch bIdx
       const sofasCount = bData.waitingSofasCount || 1;
-      const sofaTiles = [{ x: 3 + offsetX, y: 14 }, { x: 8 + offsetX, y: 14 }, { x: 13 + offsetX, y: 14 }];
+      const sofaTiles = [{ x: 3 + offsetX, y: 14 + offsetY }, { x: 8 + offsetX, y: 14 + offsetY }, { x: 13 + offsetX, y: 14 + offsetY }];
       sofaTiles.forEach((tile, idx) => {
         const isActive = idx < sofasCount;
         entities.push({
@@ -827,9 +1041,9 @@ export class IsometricRenderer {
 
       // Mirror Station #1 for Branch bIdx
       entities.push({
-        gridX: 7 + offsetX, gridY: 3, sortKey: 7 + offsetX + 3 - 0.1,
+        gridX: 7 + offsetX, gridY: 3 + offsetY, sortKey: (7 + offsetX) + (3 + offsetY) - 0.1,
         draw: (ctx) => {
-          const p = this.gridToScreen(7 + offsetX, 3);
+          const p = this.gridToScreen(7 + offsetX, 3 + offsetY);
           const stationSprite = spriteMgr.getBarberStationSprite(this.zoom);
           ctx.drawImage(stationSprite, p.x - stationSprite.width / 2, p.y - stationSprite.height + 10 * this.zoom);
         }
@@ -837,41 +1051,31 @@ export class IsometricRenderer {
 
       // Barber Chair #1 for Branch bIdx
       entities.push({
-        gridX: 7 + offsetX, gridY: 4, sortKey: 7 + offsetX + 4,
+        gridX: 7 + offsetX, gridY: 4 + offsetY, sortKey: (7 + offsetX) + (4 + offsetY),
         draw: (ctx) => {
-          const p = this.gridToScreen(7 + offsetX, 4);
+          const p = this.gridToScreen(7 + offsetX, 4 + offsetY);
           const chairSprite = spriteMgr.getBarberChairSprite(this.zoom);
           ctx.drawImage(chairSprite, p.x - chairSprite.width / 2, p.y - chairSprite.height + 25 * this.zoom);
         }
       });
 
-      // 3D Warehouse Cargo Box Shelf at (21 + offsetX, 3) (Far top-right corner to prevent overlap with Station 3)
-      entities.push({
-        gridX: 21 + offsetX, gridY: 3, sortKey: 21 + offsetX + 3,
-        draw: (ctx) => {
-          const p = this.gridToScreen(21 + offsetX, 3);
-          const shelfSprite = spriteMgr.getWarehouseShelfSprite(this.zoom);
-          ctx.drawImage(shelfSprite, p.x - shelfSprite.width / 2, p.y - shelfSprite.height + 15 * this.zoom);
-        }
-      });
-
-      // 3D Hair Wash Basin Station at (2 + offsetX, 7) (if unlocked)
+      // 3D Hair Wash Basin Station at (2 + offsetX, 7 + offsetY) (if unlocked)
       const washUnlocked = (bData.upgrades?.hair_wash_station?.level || 0) >= 1;
       if (washUnlocked) {
         entities.push({
-          gridX: 2 + offsetX, gridY: 7, sortKey: 2 + offsetX + 7,
+          gridX: 2 + offsetX, gridY: 7 + offsetY, sortKey: (2 + offsetX) + (7 + offsetY),
           draw: (ctx) => {
-            const p = this.gridToScreen(2 + offsetX, 7);
+            const p = this.gridToScreen(2 + offsetX, 7 + offsetY);
             const washSprite = spriteMgr.getHairWashStationSprite(this.zoom);
             ctx.drawImage(washSprite, p.x - washSprite.width / 2, p.y - washSprite.height + 15 * this.zoom);
           }
         });
       }
 
-      // 2nd Barber Station & Chair #2 at (12 + offsetX, 3)/(12 + offsetX, 4)
+      // 2nd Barber Station & Chair #2 at (12 + offsetX, 3 + offsetY)/(12 + offsetX, 4 + offsetY)
       const stationsCount = bData.barberStationsCount || 1;
-      const stationTile = { x: 12 + offsetX, y: 3 };
-      const chairTile = { x: 12 + offsetX, y: 4 };
+      const stationTile = { x: 12 + offsetX, y: 3 + offsetY };
+      const chairTile = { x: 12 + offsetX, y: 4 + offsetY };
 
       entities.push({
         gridX: stationTile.x, gridY: stationTile.y, sortKey: stationTile.x + stationTile.y - 0.1,
@@ -908,9 +1112,9 @@ export class IsometricRenderer {
         }
       });
 
-      // 3rd Barber Station & Chair #3 (👰 Gelin Saçı) at (17 + offsetX, 3)/(17 + offsetX, 4)
-      const station3Tile = { x: 17 + offsetX, y: 3 };
-      const chair3Tile = { x: 17 + offsetX, y: 4 };
+      // 3rd Barber Station & Chair #3 (👰 Gelin Saçı) at (17 + offsetX, 3 + offsetY)/(17 + offsetX, 4 + offsetY)
+      const station3Tile = { x: 17 + offsetX, y: 3 + offsetY };
+      const chair3Tile = { x: 17 + offsetX, y: 4 + offsetY };
 
       entities.push({
         gridX: station3Tile.x, gridY: station3Tile.y, sortKey: station3Tile.x + station3Tile.y - 0.1,
@@ -941,35 +1145,38 @@ export class IsometricRenderer {
         }
       });
 
-      // 3D Retail Display Shelf at (18 + offsetX, 14) (if unlocked)
+      // 3D Retail Display Shelf at (18 + offsetX, 14 + offsetY) (if unlocked)
       const retailUnlocked = (bData.upgrades?.retail_shelf?.level || 0) >= 1;
       if (retailUnlocked) {
         entities.push({
-          gridX: 18 + offsetX, gridY: 14, sortKey: 18 + offsetX + 14,
+          gridX: 18 + offsetX, gridY: 14 + offsetY, sortKey: (18 + offsetX) + (14 + offsetY),
           draw: (ctx) => {
-            const p = this.gridToScreen(18 + offsetX, 14);
+            const p = this.gridToScreen(18 + offsetX, 14 + offsetY);
             const shelfSprite = spriteMgr.getRetailShelfSprite(this.zoom);
             ctx.drawImage(shelfSprite, p.x - shelfSprite.width / 2, p.y - shelfSprite.height + 15 * this.zoom);
           }
         });
       }
 
-      // Reception Desk for Branch bIdx at (18 + offsetX, 9)
+      // Reception Desk for Branch bIdx at (18 + offsetX, 9 + offsetY) - ALWAYS rendered in background behind ALL NPCs
       entities.push({
-        gridX: 18 + offsetX, gridY: 9, sortKey: 18 + offsetX + 9,
+        gridX: 18 + offsetX, gridY: 9 + offsetY, sortKey: (18 + offsetX) + (0.1 + offsetY),
         draw: (ctx) => {
-          const p = this.gridToScreen(18 + offsetX, 9);
+          const p = this.gridToScreen(18 + offsetX, 9 + offsetY);
           const deskSprite = spriteMgr.getReceptionDeskSprite(this.zoom);
-          ctx.drawImage(deskSprite, p.x - deskSprite.width / 2, p.y - deskSprite.height + 15 * this.zoom);
+          const dw = deskSprite.width / 2;
+          const dh = deskSprite.height / 2;
+          ctx.drawImage(deskSprite, p.x - dw / 2, p.y - dh + 15 * this.zoom, dw, dh);
         }
       });
 
-      // Barber Pole for Branch bIdx at (22 + offsetX, 15)
+      // Pink Isometric Salon Door at Entrance (22 + offsetX, 15 + offsetY)
       entities.push({
-        gridX: 22 + offsetX, gridY: 15, sortKey: 22 + offsetX + 15,
+        gridX: 22 + offsetX, gridY: 15 + offsetY, sortKey: (22 + offsetX) + (15 + offsetY) - 0.1,
         draw: (ctx) => {
-          const p = this.gridToScreen(22 + offsetX, 15);
-          this.drawBarberPole(p.x, p.y);
+          const p = this.gridToScreen(22 + offsetX, 15 + offsetY);
+          const doorSprite = spriteMgr.getSalonDoorSprite(this.zoom);
+          ctx.drawImage(doorSprite, p.x - doorSprite.width / 2, p.y - doorSprite.height + 15 * this.zoom);
         }
       });
     });

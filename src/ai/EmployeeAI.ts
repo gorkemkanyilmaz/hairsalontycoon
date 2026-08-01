@@ -34,13 +34,25 @@ export class EmployeeManager {
   private updateEmployeeAI(emp: IEmployeeData, customers: ICustomerNPC[], deltaSec: number): void {
     this.moveTowardsTarget(emp, deltaSec);
 
+    const bIdx = emp.branchIndex || 0;
+    const col = bIdx % 3;
+    const row = Math.floor(bIdx / 3);
+    const offsetX = col * 30;
+    const offsetY = row * 28;
+    const bData = this.stateStore.getState().branches?.[bIdx];
+    if (bData && bData.constructionEndsTimestamp && Date.now() < bData.constructionEndsTimestamp) {
+      emp.state = EmployeeState.IDLE;
+      emp.targetX = 1 + offsetX;
+      emp.targetY = 1 + offsetY;
+      return;
+    }
+
     // If employee is in training, skip automated work until training timer expires
     if (emp.trainingEndsTimestamp) {
       if (Date.now() < emp.trainingEndsTimestamp) {
         emp.state = EmployeeState.TRAINING;
-        const branchOffset = (emp.branchIndex || 0) * 30;
-        emp.targetX = 1 + branchOffset;
-        emp.targetY = 1;
+        emp.targetX = 1 + offsetX;
+        emp.targetY = 1 + offsetY;
         return;
       } else {
         emp.trainingEndsTimestamp = undefined;
@@ -49,18 +61,16 @@ export class EmployeeManager {
       }
     }
 
-    const branchOffset = (emp.branchIndex || 0) * 30;
-
     if (emp.role === 'JUNIOR_STYLIST' || emp.role === 'SENIOR_STYLIST') {
-      // Automatic Hair Stylist AI Logic
-      const homeX = (emp.assignedChairIndex === 1 ? 12 : (emp.assignedChairIndex === 2 ? 17 : 7)) + branchOffset;
-      const homeY = 3;
+      // Automatic Hair Stylist AI Logic (Positioned to the RIGHT of station)
+      const homeX = (emp.assignedChairIndex === 1 ? 13 : (emp.assignedChairIndex === 2 ? 18 : 8)) + offsetX;
+      const homeY = 3 + offsetY;
       emp.targetX = homeX;
       emp.targetY = homeY;
 
       const chairIndex = emp.assignedChairIndex;
       const seatedCustomer = customers.find(
-        (c) => (c.branchIndex || 0) === (emp.branchIndex || 0) &&
+        (c) => (c.branchIndex || 0) === bIdx &&
         c.assignedChairIndex === chairIndex && (c.state === CustomerState.SEATED || c.state === CustomerState.RECEIVING_SERVICE)
       );
 
@@ -68,12 +78,12 @@ export class EmployeeManager {
         if (seatedCustomer.state === CustomerState.SEATED) {
           seatedCustomer.state = CustomerState.RECEIVING_SERVICE;
           seatedCustomer.haircutProgress = 0;
-          this.eventBus.emit(GameEventType.HAIRCUT_STARTED, seatedCustomer);
-        } else if (seatedCustomer.state === CustomerState.RECEIVING_SERVICE) {
-          const activeBranch = this.stateStore.getActiveBranch();
-          const speedBonus = 1.0 + ((activeBranch.upgrades?.quick_scissors?.level || 0) * 0.10);
-          const baseRate = 4.0 + (emp.level || 1) * 2.5; // Level 1 = 6.5, Level 5 = 16.5
-          seatedCustomer.haircutProgress += deltaSec * baseRate * emp.speedMultiplier * speedBonus;
+        }
+
+        if (seatedCustomer.state === CustomerState.RECEIVING_SERVICE) {
+          const speedMult = 1.0 + (emp.level - 1) * 0.35;
+          // Seviye 1 kuaför hizmet hızı %20 yavaşlatıldı (22 -> 17.6 progress/sn)
+          seatedCustomer.haircutProgress = (seatedCustomer.haircutProgress || 0) + deltaSec * 17.6 * speedMult;
 
           if (seatedCustomer.haircutProgress >= 100) {
             seatedCustomer.haircutProgress = 100;
@@ -83,14 +93,14 @@ export class EmployeeManager {
       }
     } else if (emp.role === 'RECEPTIONIST') {
       // Automatic Receptionist Cash Collection AI Logic
-      emp.targetX = 18 + branchOffset;
-      emp.targetY = 8;
+      emp.targetX = 18 + offsetX;
+      emp.targetY = 8 + offsetY;
 
       const payingCustomer = customers.find(
-        (c) => (c.branchIndex || 0) === (emp.branchIndex || 0) && c.state === CustomerState.PAYING
+        (c) => (c.branchIndex || 0) === bIdx && c.state === CustomerState.PAYING
       );
       if (payingCustomer) {
-        const distToDesk = Math.hypot(payingCustomer.posX - (18 + branchOffset), payingCustomer.posY - 9);
+        const distToDesk = Math.hypot(payingCustomer.posX - (18 + offsetX), payingCustomer.posY - (9 + offsetY));
         if (distToDesk < 1.2) {
           // Initialize payment collection progress if not started
           if (payingCustomer.collectProgress === undefined) {

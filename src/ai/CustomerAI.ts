@@ -37,6 +37,7 @@ export interface ICustomerNPC {
   spawnTimestamp: number;
   collectProgress?: number;
   branchIndex?: number;
+  appliedHairColor?: string;
 }
 
 export interface ISeatSlot {
@@ -73,18 +74,20 @@ export class CustomerManager {
   private waitingSlotsMap: Map<number, ISeatSlot[]> = new Map();
   private barberChairSlotsMap: Map<number, ISeatSlot[]> = new Map();
 
-  private getBranchOffset(bIdx?: number): number {
+  public getBranchGridOffset(bIdx?: number): { offsetX: number; offsetY: number } {
     const idx = bIdx !== undefined ? bIdx : (this.stateStore.getState().activeBranchIndex || 0);
-    return idx * 30;
+    const col = idx % 3;
+    const row = Math.floor(idx / 3);
+    return { offsetX: col * 30, offsetY: row * 28 };
   }
 
   public getWaitingSlotsForBranch(bIdx: number): ISeatSlot[] {
     if (!this.waitingSlotsMap.has(bIdx)) {
-      const offset = bIdx * 30;
+      const { offsetX, offsetY } = this.getBranchGridOffset(bIdx);
       this.waitingSlotsMap.set(bIdx, [
-        { x: 3 + offset, y: 14, reservedBy: null },
-        { x: 8 + offset, y: 14, reservedBy: null },
-        { x: 13 + offset, y: 14, reservedBy: null }
+        { x: 3 + offsetX, y: 14 + offsetY, reservedBy: null },
+        { x: 8 + offsetX, y: 14 + offsetY, reservedBy: null },
+        { x: 13 + offsetX, y: 14 + offsetY, reservedBy: null }
       ]);
     }
     return this.waitingSlotsMap.get(bIdx)!;
@@ -92,32 +95,36 @@ export class CustomerManager {
 
   public getBarberChairSlotsForBranch(bIdx: number): ISeatSlot[] {
     if (!this.barberChairSlotsMap.has(bIdx)) {
-      const offset = bIdx * 30;
+      const { offsetX, offsetY } = this.getBranchGridOffset(bIdx);
       this.barberChairSlotsMap.set(bIdx, [
-        { x: 7 + offset, y: 4, reservedBy: null },
-        { x: 12 + offset, y: 4, reservedBy: null },
-        { x: 17 + offset, y: 4, reservedBy: null }
+        { x: 7 + offsetX, y: 3 + offsetY, reservedBy: null },
+        { x: 12 + offsetX, y: 3 + offsetY, reservedBy: null },
+        { x: 17 + offsetX, y: 3 + offsetY, reservedBy: null }
       ]);
     }
     return this.barberChairSlotsMap.get(bIdx)!;
   }
 
   public getDoorTile(bIdx?: number): { x: number; y: number } {
-    return { x: 22 + this.getBranchOffset(bIdx), y: 15 };
+    const { offsetX, offsetY } = this.getBranchGridOffset(bIdx);
+    return { x: 22 + offsetX, y: 15 + offsetY };
   }
 
   public getReceptionTile(bIdx?: number): { x: number; y: number } {
-    return { x: 18 + this.getBranchOffset(bIdx), y: 9 };
+    const { offsetX, offsetY } = this.getBranchGridOffset(bIdx);
+    return { x: 18 + offsetX, y: 9 + offsetY };
   }
 
   public getWaitingSlotTile(bIdx: number, slotIdx: number): { x: number; y: number } {
     const slots = this.getWaitingSlotsForBranch(bIdx);
-    return { x: slots[slotIdx]?.x || (3 + bIdx * 30), y: 14 };
+    const { offsetX, offsetY } = this.getBranchGridOffset(bIdx);
+    return { x: slots[slotIdx]?.x || (3 + offsetX), y: slots[slotIdx]?.y || (14 + offsetY) };
   }
 
   public getChairSlotTile(bIdx: number, chairIdx: number): { x: number; y: number } {
     const slots = this.getBarberChairSlotsForBranch(bIdx);
-    return { x: slots[chairIdx]?.x || (7 + bIdx * 30), y: 4 };
+    const { offsetX, offsetY } = this.getBranchGridOffset(bIdx);
+    return { x: slots[chairIdx]?.x || (7 + offsetX), y: slots[chairIdx]?.y || (3 + offsetY) };
   }
 
   private constructor() {
@@ -140,26 +147,36 @@ export class CustomerManager {
   public update(deltaSec: number): void {
     const branches = this.stateStore.getState().branches || [this.stateStore.getActiveBranch()];
 
-    branches.forEach((_, bIdx) => this.cleanStaleReservationsForBranch(bIdx));
-    branches.forEach((_, bIdx) => this.promoteFirstInQueueToFreeChairForBranch(bIdx));
+    branches.forEach((bData, bIdx) => {
+      if (bData.constructionEndsTimestamp && Date.now() < bData.constructionEndsTimestamp) return;
+      this.cleanStaleReservationsForBranch(bIdx);
+      this.promoteFirstInQueueToFreeChairForBranch(bIdx);
+    });
 
     const targetInterval = this.stateStore.isMarketingActive ? 1.8 : this.spawnIntervalSec;
     this.spawnTimer += deltaSec;
     if (this.spawnTimer >= targetInterval) {
       this.spawnTimer = 0;
-      branches.forEach((_, bIdx) => this.trySpawnCustomerForBranch(bIdx));
+      branches.forEach((bData, bIdx) => {
+        if (bData.constructionEndsTimestamp && Date.now() < bData.constructionEndsTimestamp) return;
+        this.trySpawnCustomerForBranch(bIdx);
+      });
     }
 
-    const activeBIdx = this.stateStore.getState().activeBranchIndex || 0;
-    const activeBranchCusts = this.customers.filter((c) => (c.branchIndex || 0) === activeBIdx);
-    if (activeBranchCusts.length === 0 && this.spawnTimer > 0.8) {
-      this.spawnTimer = 0;
-      this.trySpawnCustomerForBranch(activeBIdx);
-    }
+
 
     for (let i = 0; i < this.customers.length; i++) {
       const customer = this.customers[i];
       if (!customer) continue;
+
+      const bData = branches[customer.branchIndex || 0];
+      if (bData && bData.constructionEndsTimestamp && Date.now() < bData.constructionEndsTimestamp) {
+        this.freeCustomerReservations(customer.id, customer.branchIndex || 0);
+        this.customers.splice(i, 1);
+        i--;
+        continue;
+      }
+
       this.updateCustomerAI(customer, deltaSec);
 
       const doorTile = this.getDoorTile(customer.branchIndex);
@@ -259,11 +276,14 @@ export class CustomerManager {
     const doorTile = this.getDoorTile(bIdx);
 
     const customerAtDoor = this.customers.some(
-      (c) => (c.branchIndex || 0) === bIdx && Math.hypot(c.posX - doorTile.x, c.posY - doorTile.y) < 3.2
+      (c) => (c.branchIndex || 0) === bIdx && c.state === CustomerState.ENTERING && Math.hypot(c.posX - doorTile.x, c.posY - doorTile.y) < 0.8
     );
     if (customerAtDoor) return;
 
     const branchData = this.stateStore.getState().branches?.[bIdx] || this.stateStore.getActiveBranch();
+    if (branchData.constructionEndsTimestamp && Date.now() < branchData.constructionEndsTimestamp) {
+      return; // Do NOT spawn customers for branch under construction!
+    }
     const chairsCount = branchData.chairsCount || 1;
     const chairSlots = this.getBarberChairSlotsForBranch(bIdx);
     const waitingSlots = this.getWaitingSlotsForBranch(bIdx);
@@ -404,7 +424,8 @@ export class CustomerManager {
             customer.washProgress = 100;
             customer.earnedAmount += 30;
 
-            const chairsCount = this.stateStore.getActiveBranch().chairsCount || 1;
+            const branchData = this.stateStore.getState().branches?.[bIdx] || this.stateStore.getActiveBranch();
+            const chairsCount = branchData.chairsCount || 1;
             const chairSlotsBranch = this.getBarberChairSlotsForBranch(bIdx);
             let freeChairIdx = 0;
             if (chairsCount > 1 && chairSlotsBranch[1].reservedBy === null) {
@@ -514,13 +535,21 @@ export class CustomerManager {
       let tip = customer.customerClass === CustomerClass.VIP ? 60 : 15;
 
       if (qualityRating === 'GREAT') tip += 15;
-      if (qualityRating === 'PERFECT') {
-        tip += 35;
-        this.stateStore.addGoogleReview(
-          customer.name,
-          5,
-          `Harika kuaför salonu! ${customer.wish.color} saç stilim mükemmel oldu! ⭐⭐⭐⭐⭐`
-        );
+      if (qualityRating === 'PERFECT') tip += 35;
+
+      // Positive Google Review generation (100% for PERFECT, 70% for GREAT hairdresser service)
+      const reviewRoll = Math.random();
+      if (qualityRating === 'PERFECT' || reviewRoll < 0.70) {
+        const ratingStars = qualityRating === 'PERFECT' ? 5 : (Math.random() < 0.75 ? 5 : 4);
+        const positiveComments = [
+          `Harika kuaför salonu! ${customer.wish.color} saç stilim mükemmel oldu! ⭐⭐⭐⭐⭐`,
+          `Salondaki çalışan kuaför harikalar yarattı! Saçım tam istediğim gibi! ⭐⭐⭐⭐⭐`,
+          `Kuaför personeli çok yetenekli ve el çabukluğu harika! ⭐⭐⭐⭐⭐`,
+          `Saç kesim ve renklendirme hizmetinden çok memnun kaldım, ellerine sağlık! ⭐⭐⭐⭐`,
+          `Salon personeli çok ilgili ve profesyonel! Herkese tavsiye ederim! ⭐⭐⭐⭐⭐`
+        ];
+        const comment = positiveComments[Math.floor(Math.random() * positiveComments.length)];
+        this.stateStore.addGoogleReview(customer.name, ratingStars, comment);
       }
 
       if (!customer.appliedHairColor) {
@@ -544,9 +573,10 @@ export class CustomerManager {
     const activeBranch = this.stateStore.getActiveBranch();
     const retailUnlocked = (activeBranch.upgrades?.retail_shelf?.level || 0) >= 1;
     if (retailUnlocked && Math.random() > 0.3 && qualityRating !== 'POOR') {
+      const { offsetX, offsetY } = this.getBranchGridOffset(bIdx);
       customer.state = CustomerState.SHOPPING_RETAIL;
-      customer.targetX = 18 + bIdx * 30;
-      customer.targetY = 14;
+      customer.targetX = 18 + offsetX;
+      customer.targetY = 14 + offsetY;
     } else {
       customer.state = CustomerState.PAYING;
       customer.targetX = receptionTile.x;

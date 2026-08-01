@@ -1,5 +1,6 @@
 import { EventBus } from './EventBus';
 import { GameEventType, IGameState, IUpgradeNode, UpgradeCategory, IEmployeeData, EmployeeState, ISalonTheme, IGoogleReview, ISalonState } from './Types';
+import { TutorialManager } from '../ui/TutorialManager';
 
 const createDefaultUpgrades = (): Record<string, IUpgradeNode> => ({
   quick_scissors: {
@@ -73,20 +74,18 @@ const createDefaultUpgrades = (): Record<string, IUpgradeNode> => ({
     requiredPlayerLevel: 1,
     effects: { vipFrequencyMultiplier: 3.0 }
   },
-  salon_expansion: {
-    id: 'salon_expansion',
-    name: '📐 Salon Alanı Büyütme',
-    description: 'Salonu büyütür! 3. Kuaför Standını ve 1 Saatlik Lüks 👰 Gelin Saçı Hizmetini açar!',
-    icon: '📐',
-    category: UpgradeCategory.EXPANSION,
+  marketing_boost: {
+    id: 'marketing_boost',
+    name: 'Sosyal Medya Reklamları',
+    description: 'Salona gelen toplam müşteri sayısını artırır.',
+    icon: '📱',
+    category: UpgradeCategory.DECOR,
     level: 0,
-    maxLevel: 1,
-    baseCost: 8000,
-    costMultiplier: 1.0,
+    maxLevel: 15,
+    baseCost: 250,
+    costMultiplier: 1.5,
     requiredPlayerLevel: 1,
-    prerequisiteUpgradeId: 'comfy_chair',
-    prerequisiteDescription: 'Ergonomik Kuaför Koltuğu Seviye 3 olmalıdır!',
-    effects: { expansionUnlocked: true }
+    effects: { incomeMultiplier: 0.20 }
   }
 });
 
@@ -118,6 +117,14 @@ export class StateStore {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.branches && Array.isArray(parsed.branches) && parsed.branches.length > 0 && parsed.branches[0].upgrades) {
+          // Migration: delete legacy duplicate station upgrade keys
+          parsed.branches.forEach((b: any) => {
+            if (b.upgrades) {
+              delete b.upgrades.salon_expansion;
+              delete b.upgrades.second_barber_station;
+              delete b.upgrades.barber_station_2;
+            }
+          });
           // Migration: fix any employee role/name corruption from reversed parameters
           if (parsed.employees && Array.isArray(parsed.employees)) {
             parsed.employees.forEach((emp: any) => {
@@ -235,13 +242,104 @@ export class StateStore {
     this.saveState();
   }
 
+  public checkPrerequisites(actionType: string, branchIdx?: number, extraId?: string): { allowed: boolean; reason?: string } {
+    const targetBIdx = branchIdx !== undefined ? branchIdx : this.state.activeBranchIndex || 0;
+    const branch = this.state.branches?.[targetBIdx] || this.getActiveBranch();
+    const branchEmployees = (this.state.employees || []).filter((e) => (e.branchIndex || 0) === targetBIdx);
+    const stationsCount = branch.barberStationsCount || 1;
+    const sofasCount = branch.waitingSofasCount || 1;
+    const upgrades = branch.upgrades || {};
+
+    if (actionType === 'barber_station_2') {
+      const hasStylist1 = branchEmployees.some((e) => e.role === 'JUNIOR_STYLIST' || e.role === 'SENIOR_STYLIST');
+      if (!hasStylist1) {
+        return { allowed: false, reason: '🔒 Öncül: 2. İstasyon için önce 1. Kuaför (Cansu A.) işe alınmalıdır!' };
+      }
+    } else if (actionType === 'barber_station_3') {
+      const stylistsCount = branchEmployees.filter((e) => e.role === 'JUNIOR_STYLIST' || e.role === 'SENIOR_STYLIST').length;
+      const hasReceptionist = branchEmployees.some((e) => e.role === 'RECEPTIONIST');
+      if (stylistsCount < 2 || !hasReceptionist) {
+        return { allowed: false, reason: '🔒 Öncül: 3. İstasyon için önce 2 Kuaför (Cansu & Selin) ve Kasiyer (Pelin) işe alınmalıdır!' };
+      }
+    } else if (actionType === 'waiting_sofa_2') {
+      if (stationsCount < 1) {
+        return { allowed: false, reason: '🔒 Öncül: 2. Bekleme koltuğu için 1. İstasyon faal olmalıdır!' };
+      }
+    } else if (actionType === 'waiting_sofa_3') {
+      if (stationsCount < 2) {
+        return { allowed: false, reason: '🔒 Öncül: 3. Bekleme koltuğu için önce 2. Kuaför İstasyonu açılmalıdır!' };
+      }
+    } else if (actionType === 'hire_JUNIOR_STYLIST_2' || actionType === 'hire_Selin K.') {
+      if (stationsCount < 2) {
+        return { allowed: false, reason: '🔒 Öncül: 2. Kuaför için önce 2. Kuaför İstasyonu satın alınmalıdır!' };
+      }
+    } else if (actionType === 'hire_RECEPTIONIST' || actionType === 'hire_Pelin K.') {
+      if (stationsCount < 2) {
+        return { allowed: false, reason: '🔒 Öncül: Kasiyer işe almak için önce 2. Kuaför İstasyonu açılmalıdır!' };
+      }
+    } else if (actionType === 'hire_SENIOR_STYLIST' || actionType === 'hire_Usta Kuaför') {
+      if (stationsCount < 3) {
+        return { allowed: false, reason: '🔒 Öncül: Usta Kuaför için önce 3. VIP Kuaför İstasyonu açılmalıdır!' };
+      }
+    } else if (actionType === 'upgrade_hair_wash_station') {
+      const scissorsLvl = upgrades['quick_scissors']?.level || 0;
+      if (scissorsLvl < 3 || stationsCount < 2) {
+        return { allowed: false, reason: '🔒 Öncül: Yıkama ünitesi için Hızlı Fön Seviye 3 ve 2. Kuaför İstasyonu gereklidir!' };
+      }
+    } else if (actionType === 'upgrade_retail_shelf') {
+      const washLvl = upgrades['hair_wash_station']?.level || 0;
+      if (washLvl < 1) {
+        return { allowed: false, reason: '🔒 Öncül: Ürün stantı için önce Saç Yıkama Ünitesi açılmalıdır!' };
+      }
+    } else if (actionType === 'upgrade_vip_attractor') {
+      const chairLvl = upgrades['comfy_chair']?.level || 0;
+      if (chairLvl < 5) {
+        return { allowed: false, reason: '🔒 Öncül: VIP Reklamı için Ergonomik Kuaför Koltuğu Seviye 5 olmalıdır!' };
+      }
+    } else if (actionType === 'employee_training_2') {
+      const scissorsLvl = upgrades['quick_scissors']?.level || 0;
+      if (scissorsLvl < 3) {
+        return { allowed: false, reason: '🔒 Öncül: Seviye 2 Eğitimi için Hızlı Fön Seviye 3 olmalıdır!' };
+      }
+    } else if (actionType === 'employee_training_3') {
+      const chairLvl = upgrades['comfy_chair']?.level || 0;
+      if (chairLvl < 5) {
+        return { allowed: false, reason: '🔒 Öncül: Seviye 3 Eğitimi için Ergonomik Koltuk Seviye 5 olmalıdır!' };
+      }
+    } else if (actionType === 'open_branch_1') {
+      const b0 = this.state.branches?.[0];
+      const b0Stations = b0?.barberStationsCount || 1;
+      const b0Employees = (this.state.employees || []).filter((e) => (e.branchIndex || 0) === 0).length;
+      if (b0Stations < 2 || b0Employees < 2 || (this.state.reputation || 0) < 4.0) {
+        return { allowed: false, reason: '🔒 Öncül: Nişantaşı Şubesi için Kadıköy\'de 2+ İstasyon, 2+ Personel ve 4.0 Yıldız İtibar gereklidir!' };
+      }
+    } else if (actionType === 'open_branch_2') {
+      const b1 = this.state.branches?.[1];
+      const b1Stations = b1?.barberStationsCount || 1;
+      const b1Employees = (this.state.employees || []).filter((e) => (e.branchIndex || 0) === 1).length;
+      if (b1Stations < 3 || b1Employees < 3) {
+        return { allowed: false, reason: '🔒 Öncül: Beşiktaş Şubesi için Nişantaşı\'nda 3 İstasyon ve 3 Personel gereklidir!' };
+      }
+    }
+
+    return { allowed: true };
+  }
+
   // Buy an extra waiting sofa for the active branch (max 3). ₺800 each.
   public buyWaitingSofa(): boolean {
     const branch = this.getActiveBranch();
-    if ((branch.waitingSofasCount || 1) >= 3) return false;
-    const cost = 800;
+    const current = branch.waitingSofasCount || 1;
+    if (current >= 3) return false;
+
+    const prereq = this.checkPrerequisites(current === 1 ? 'waiting_sofa_2' : 'waiting_sofa_3');
+    if (!prereq.allowed) {
+      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `⚠️ ${prereq.reason}`);
+      return false;
+    }
+
+    const cost = current === 1 ? 800 : 2500;
     if (!this.deductCash(cost)) return false;
-    branch.waitingSofasCount = (branch.waitingSofasCount || 1) + 1;
+    branch.waitingSofasCount = current + 1;
     branch.queueCapacity = branch.waitingSofasCount;
     if (branch.salonLevel < 2) branch.salonLevel = 2;
     this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `🛋️ Yeni bekleme koltuğu kuruldu! (Toplam ${branch.waitingSofasCount}/3)`);
@@ -266,16 +364,25 @@ export class StateStore {
     return true;
   }
 
-  // Buy a 2nd barber station (chair + mirror) for the active branch. ₺2,000.
+  // Buy a 2nd or 3rd barber station (chair + mirror) for the active branch. ₺2,000 / ₺8,000.
   public buyBarberStation(): boolean {
     const branch = this.getActiveBranch();
-    if ((branch.barberStationsCount || 1) >= 2) return false;
-    const cost = 2000;
+    const current = branch.barberStationsCount || 1;
+    if (current >= 3) return false;
+
+    const prereq = this.checkPrerequisites(current === 1 ? 'barber_station_2' : 'barber_station_3');
+    if (!prereq.allowed) {
+      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `⚠️ ${prereq.reason}`);
+      return false;
+    }
+
+    const nextCount = current + 1;
+    const cost = nextCount === 2 ? 2000 : 8000;
     if (!this.deductCash(cost)) return false;
-    branch.barberStationsCount = 2;
-    branch.chairsCount = 2;
-    if (branch.salonLevel < 2) branch.salonLevel = 2;
-    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `✂️ 2. Kuaför İstasyonu kuruldu! Artık aynı anda 2 müşteri hizmet alabilir!`);
+    branch.barberStationsCount = nextCount;
+    branch.chairsCount = nextCount;
+    if (branch.salonLevel < nextCount) branch.salonLevel = nextCount;
+    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `✂️ ${nextCount}. Kuaför İstasyonu kuruldu! Artık aynı anda ${nextCount} müşteri hizmet alabilir! 🎉`);
     this.eventBus.emit(GameEventType.STATE_CHANGED, this.state);
     this.saveState();
     return true;
@@ -341,6 +448,12 @@ export class StateStore {
   public upgradeEmployeeLevel(employeeId: string): boolean {
     const emp = this.state.employees.find((e) => e.id === employeeId);
     if (!emp) return false;
+
+    const prereq = this.checkPrerequisites('employee_training_' + (emp.level + 1), emp.branchIndex || 0);
+    if (!prereq.allowed) {
+      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `⚠️ ${prereq.reason}`);
+      return false;
+    }
 
     const cost = emp.level * 250;
     if (!this.deductCash(cost)) return false;
@@ -497,10 +610,18 @@ export class StateStore {
 
   public buyWaitingSofaWithDiamonds(): boolean {
     const branch = this.getActiveBranch();
-    if ((branch.waitingSofasCount || 1) >= 3) return false;
-    const diamondCost = 8;
+    const current = branch.waitingSofasCount || 1;
+    if (current >= 3) return false;
+
+    const prereq = this.checkPrerequisites(current === 1 ? 'waiting_sofa_2' : 'waiting_sofa_3');
+    if (!prereq.allowed) {
+      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `⚠️ ${prereq.reason}`);
+      return false;
+    }
+
+    const diamondCost = current === 1 ? 8 : 25;
     if (!this.deductDiamonds(diamondCost)) return false;
-    branch.waitingSofasCount = (branch.waitingSofasCount || 1) + 1;
+    branch.waitingSofasCount = current + 1;
     branch.queueCapacity = branch.waitingSofasCount;
     if (branch.salonLevel < 2) branch.salonLevel = 2;
     this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `🛋️ Yeni bekleme koltuğu elmas ile kuruldu! (Toplam ${branch.waitingSofasCount}/3)`);
@@ -511,19 +632,34 @@ export class StateStore {
 
   public buyBarberStationWithDiamonds(): boolean {
     const branch = this.getActiveBranch();
-    if ((branch.barberStationsCount || 1) >= 2) return false;
-    const diamondCost = 20;
+    const current = branch.barberStationsCount || 1;
+    if (current >= 3) return false;
+
+    const prereq = this.checkPrerequisites(current === 1 ? 'barber_station_2' : 'barber_station_3');
+    if (!prereq.allowed) {
+      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `⚠️ ${prereq.reason}`);
+      return false;
+    }
+
+    const nextCount = current + 1;
+    const diamondCost = nextCount === 2 ? 20 : 50;
     if (!this.deductDiamonds(diamondCost)) return false;
-    branch.barberStationsCount = 2;
-    branch.chairsCount = 2;
-    if (branch.salonLevel < 2) branch.salonLevel = 2;
-    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `✂️ 2. Kuaför İstasyonu elmas ile kuruldu!`);
+    branch.barberStationsCount = nextCount;
+    branch.chairsCount = nextCount;
+    if (branch.salonLevel < nextCount) branch.salonLevel = nextCount;
+    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `✂️ ${nextCount}. Kuaför İstasyonu elmas ile kuruldu! 🎉`);
     this.eventBus.emit(GameEventType.STATE_CHANGED, this.state);
     this.saveState();
     return true;
   }
 
   public hireEmployeeWithDiamonds(name: string, role: 'JUNIOR_STYLIST' | 'SENIOR_STYLIST' | 'RECEPTIONIST', chairIndex: number, diamondCost: number): boolean {
+    const prereq = this.checkPrerequisites('hire_' + name, this.state.activeBranchIndex);
+    if (!prereq.allowed) {
+      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `⚠️ ${prereq.reason}`);
+      return false;
+    }
+
     if (!this.deductDiamonds(diamondCost)) return false;
     this.hireEmployee(name, role, chairIndex);
     return true;
@@ -532,6 +668,12 @@ export class StateStore {
   public upgradeEmployeeLevelWithDiamonds(employeeId: string): boolean {
     const emp = this.state.employees.find((e) => e.id === employeeId);
     if (!emp) return false;
+
+    const prereq = this.checkPrerequisites('employee_training_' + (emp.level + 1), emp.branchIndex || 0);
+    if (!prereq.allowed) {
+      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `⚠️ ${prereq.reason}`);
+      return false;
+    }
 
     const costCash = emp.level * 250;
     const diamondCost = Math.max(1, Math.ceil(costCash / 100));
@@ -620,11 +762,13 @@ export class StateStore {
       branchIndex: nextBranchIdx,
       salonName: salonName,
       salonLevel: 1,
+      chairsCount: 1,
+      chairsOccupied: 0,
       queueCapacity: 1,
       waitingSofasCount: 1,
       barberStationsCount: 1,
-      chairsCount: 1,
       prestigeMultiplier: 1.0 + nextBranchIdx * 0.5,
+      theme: { floorStyle: 'ROSE_MARBLE', wallStyle: 'PASTEL_PINK' },
       constructionEndsTimestamp: Date.now() + 3600 * 1000,
       upgrades: {
         quick_scissors: { id: 'quick_scissors', name: 'Hızlı Fön & Makas', description: 'Kuaför işlem hızını artırır.', icon: '✂️', level: 0, maxLevel: 25, baseCost: 100, costMultiplier: 1.4, requiredPlayerLevel: 1 },
@@ -725,6 +869,12 @@ export class StateStore {
     ];
 
     const nextBranchIdx = this.state.branches.length;
+    const prereq = this.checkPrerequisites('open_branch_' + nextBranchIdx);
+    if (!prereq.allowed) {
+      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `⚠️ ${prereq.reason}`);
+      return false;
+    }
+
     const baseCost = 10000;
     const cost = Math.floor(baseCost * Math.pow(2.2, nextBranchIdx - 1));
     if (this.state.cash < cost) return false;
@@ -759,23 +909,41 @@ export class StateStore {
     return true;
   }
 
-  public speedUpBranchConstructionWithDiamonds(branchIndex: number): boolean {
-    const branch = this.state.branches[branchIndex];
+  public speedUpBranchConstructionWithDiamonds(branchIndex?: number): boolean {
+    const idx = branchIndex !== undefined ? branchIndex : (this.state.activeBranchIndex || 0);
+    const branch = this.state.branches[idx];
     if (!branch || !branch.constructionEndsTimestamp) return false;
 
-    const diamondCost = 50;
-    if (!this.deductDiamonds(diamondCost)) return false;
+    const remainingSec = Math.max(1, Math.ceil((branch.constructionEndsTimestamp - Date.now()) / 1000));
+    const diamondCost = Math.max(1, Math.ceil((remainingSec / 3600) * 50));
+
+    if (!this.deductDiamonds(diamondCost)) {
+      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `⚠️ Yetersiz Elmas! Gerekli: 💎${diamondCost}`);
+      return false;
+    }
 
     branch.constructionEndsTimestamp = undefined;
-    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `⚡ 50 💎 ELMAS İLE ANINDA TAMAMLANDI! ${branch.salonName} Hizmete Açıldı!`);
+    this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `⚡ 💎${diamondCost} ELMAS İLE ANINDA TAMAMLANDI! ${branch.salonName} Hizmete Açıldı! 🎉`);
     this.eventBus.emit(GameEventType.STATE_CHANGED, this.state);
     this.saveState();
     return true;
   }
 
-  public hireEmployee(name: string, role: 'JUNIOR_STYLIST' | 'SENIOR_STYLIST' | 'RECEPTIONIST' | 'WASH_SPECIALIST', assignedChairIndex: number): void {
-    const startX = role === 'RECEPTIONIST' ? 18 : (assignedChairIndex === 1 ? 12 : (assignedChairIndex === 2 ? 17 : 7));
-    const startY = role === 'RECEPTIONIST' ? 8 : 3;
+  public hireEmployee(name: string, role: 'JUNIOR_STYLIST' | 'SENIOR_STYLIST' | 'RECEPTIONIST' | 'WASH_SPECIALIST', assignedChairIndex: number): boolean {
+    const prereq = this.checkPrerequisites('hire_' + name, this.state.activeBranchIndex);
+    if (!prereq.allowed) {
+      this.eventBus.emit(GameEventType.NOTIFICATION_TRIGGERED, `⚠️ ${prereq.reason}`);
+      return false;
+    }
+
+    const bIdx = this.state.activeBranchIndex || 0;
+    const col = bIdx % 3;
+    const row = Math.floor(bIdx / 3);
+    const offsetX = col * 30;
+    const offsetY = row * 28;
+
+    const startX = (role === 'RECEPTIONIST' ? 18 : (assignedChairIndex === 1 ? 13 : (assignedChairIndex === 2 ? 18 : 8))) + offsetX;
+    const startY = (role === 'RECEPTIONIST' ? 8 : 3) + offsetY;
 
     const newEmp: IEmployeeData = {
       id: 'emp_' + Date.now(),
@@ -799,5 +967,6 @@ export class StateStore {
     this.state.employees.push(newEmp);
     this.eventBus.emit(GameEventType.EMPLOYEE_HIRED, newEmp);
     this.saveState();
+    return true;
   }
 }

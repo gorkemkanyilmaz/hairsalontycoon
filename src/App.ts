@@ -5,7 +5,7 @@ import { GameEventType, CustomerState } from './core/Types';
 import { IsometricRenderer } from './render/IsometricRenderer';
 import { HUD } from './ui/HUD';
 import { UIManager } from './ui/UIManager';
-import { CustomerManager } from './ai/CustomerAI';
+import { CustomerManager, ICustomerNPC } from './ai/CustomerAI';
 import { EmployeeManager } from './ai/EmployeeAI';
 import { HaircutMinigame } from './ui/HaircutMinigame';
 import { SoundEngine } from './audio/SoundEngine';
@@ -124,7 +124,57 @@ export class App {
     const customers = this.customerManager.getCustomers();
     const tutStep = this.tutorialManager.currentStep;
     const activeBranchIdx = this.stateStore.getState().activeBranchIndex || 0;
-    const branchOffset = activeBranchIdx * 30;
+    const col = activeBranchIdx % 3;
+    const row = Math.floor(activeBranchIdx / 3);
+    const branchOffsetX = col * 30;
+    const branchOffsetY = row * 28;
+    // Multi-branch construction hit test (allows clicking construction banner for ANY branch on the map without switching first!)
+    const branches = this.stateStore.getState().branches || [];
+    for (let bIdx = 0; bIdx < branches.length; bIdx++) {
+      const bData = branches[bIdx];
+      if (bData && bData.constructionEndsTimestamp && Date.now() < bData.constructionEndsTimestamp) {
+        const bCol = bIdx % 3;
+        const bRow = Math.floor(bIdx / 3);
+        const bOffX = bCol * 30;
+        const bOffY = bRow * 28;
+
+        let isBannerClicked = false;
+        if (screenX !== undefined && screenY !== undefined) {
+          const cp = this.renderer.gridToScreen(12 + bOffX, 8 + bOffY);
+          const bw = 560 * this.renderer.zoomLevel;
+          const bh = 210 * this.renderer.zoomLevel;
+          if (
+            screenX >= cp.x - bw / 2 &&
+            screenX <= cp.x + bw / 2 &&
+            screenY >= cp.y - bh / 2 - 40 * this.renderer.zoomLevel &&
+            screenY <= cp.y + bh / 2 + 40 * this.renderer.zoomLevel
+          ) {
+            isBannerClicked = true;
+          }
+        }
+        if (!isBannerClicked) {
+          if (Math.hypot(gridPos.x - (12 + bOffX), gridPos.y - (8 + bOffY)) <= 12.0) {
+            isBannerClicked = true;
+          }
+        }
+
+        if (isBannerClicked) {
+          this.stateStore.speedUpBranchConstructionWithDiamonds(bIdx);
+          return;
+        }
+
+        // If click was inside this construction branch's floor grid (0..24, 0..18)
+        const lx = gridPos.x - bOffX;
+        const ly = gridPos.y - bOffY;
+        if (lx >= 0 && lx < 24 && ly >= 0 && ly < 18) {
+          const remainingSec = Math.max(1, Math.ceil((bData.constructionEndsTimestamp - Date.now()) / 1000));
+          const mins = Math.floor(remainingSec / 60);
+          const secs = remainingSec % 60;
+          this.showToast(`🚧 ${bData.salonName} İnşaatı Devam Ediyor! (${mins}:${secs.toString().padStart(2, '0')})`);
+          return; // Block salon interaction for this construction branch
+        }
+      }
+    }
 
     // ─────────────────────────────────────────────────────────────
     // STEP 0: Tutorial — ilk koltuk tıklaması (her yere tıkla geçsin)
@@ -137,8 +187,8 @@ export class App {
       );
       if (seatedCust) {
         seatedCust.state = CustomerState.SEATED;
-        seatedCust.posX = 7 + branchOffset;
-        seatedCust.posY = 4;
+        seatedCust.posX = 7 + branchOffsetX;
+        seatedCust.posY = 4 + branchOffsetY;
         this.soundEngine.playScissorsCutSound();
         this.haircutMinigame.startMinigame(seatedCust);
         this.tutorialManager.saveTutorialStep(TutorialStep.MINIGAME_GUIDANCE);
@@ -163,26 +213,49 @@ export class App {
     }
 
     // ─────────────────────────────────────────────────────────────
-    // 1. ÖNCE: Oturan müşteri — Screen bazlı & Grid bazlı hit test
+    // 1. ÖNCE: Kilitli mobilya & "Salonu Büyüt" tıklaması (Öncelikli)
     // ─────────────────────────────────────────────────────────────
-    const seatedCustomer = customers.find((c) => c.state === CustomerState.SEATED);
-    if (seatedCustomer) {
+    if (this.handleLockedFurnitureClick(gridPos, screenX, screenY)) return;
+
+    // ─────────────────────────────────────────────────────────────
+    // 2. ÖNCE: Oturan müşteri — Müşteri görseli veya istasyon/ayna/duvar tıklaması
+    // ─────────────────────────────────────────────────────────────
+    const seatedCustomers = customers.filter((c) => c.state === CustomerState.SEATED);
+    for (const seatedCustomer of seatedCustomers) {
       let hitSeated = false;
 
-      // Screen bazlı (daha hassas)
-      if (screenX !== undefined && screenY !== undefined) {
+      if (screenX !== undefined && screenY !== undefined && this.renderer) {
+        const rect = this.renderer.getCanvasBoundingClientRect();
+        const clickX = screenX - rect.left;
+        const clickY = screenY - rect.top;
+
+        // 1) Doğrudan müşteri beden/kafa/balon tıklaması
         const hitCustomer = this.renderer.getCustomerAtScreenPoint(screenX, screenY);
-        if (hitCustomer && hitCustomer.state === CustomerState.SEATED) {
+        if (hitCustomer && hitCustomer.id === seatedCustomer.id) {
           hitSeated = true;
         }
-      }
 
-      // Grid bazlı fallback (geniş 3.5 karo yarıçapı)
-      if (!hitSeated) {
-        const chairX = (seatedCustomer.assignedChairIndex === 1 ? 12 : (seatedCustomer.assignedChairIndex === 2 ? 17 : 7)) + branchOffset;
-        const distToChair = Math.hypot(gridPos.x - chairX, gridPos.y - 4);
-        const distToCust = Math.hypot(gridPos.x - seatedCustomer.posX, gridPos.y - seatedCustomer.posY);
-        if (distToChair <= 3.5 || distToCust <= 3.5) {
+        // 2) Müşterinin oturduğu istasyonun aynası, rozeti veya üst duvarı tıklaması
+        if (!hitSeated) {
+          const chairIndex = seatedCustomer.assignedChairIndex ?? 0;
+          const stationGx = (chairIndex === 1 ? 12 : (chairIndex === 2 ? 17 : 7)) + branchOffsetX;
+          const stationGy = 3 + branchOffsetY;
+          const cp = this.renderer.gridToScreen(stationGx, stationGy);
+          const z = this.renderer.zoomLevel;
+
+          const centerX = cp.x;
+          const centerY = cp.y - 135 * z;
+          const halfW = Math.max(40, 56 * z);
+          const halfH = Math.max(95, 145 * z);
+
+          if (Math.abs(clickX - centerX) <= halfW && Math.abs(clickY - centerY) <= halfH) {
+            hitSeated = true;
+          }
+        }
+      } else {
+        const chairX = (seatedCustomer.assignedChairIndex === 1 ? 12 : (seatedCustomer.assignedChairIndex === 2 ? 17 : 7)) + branchOffsetX;
+        const chairY = 4 + branchOffsetY;
+        if (Math.hypot(gridPos.x - chairX, gridPos.y - chairY) <= 1.2) {
           hitSeated = true;
         }
       }
@@ -195,44 +268,62 @@ export class App {
     }
 
     // ─────────────────────────────────────────────────────────────
-    // 2. SONRA: Kasadaki müşteri — ödeme al
+    // 3. SONRA: Kasadaki veya kasaya yürüyen müşteriler — Ödeme tahsili
     // ─────────────────────────────────────────────────────────────
-    const payingCustomer = customers.find((c) => c.state === CustomerState.PAYING);
-    if (payingCustomer) {
-      let hitPaying = false;
+    const payingCustomers = customers.filter((c) => (c.state === CustomerState.PAYING || (c.earnedAmount || 0) > 0) && (c.earnedAmount || 0) > 0);
+    if (payingCustomers.length > 0) {
+      let collectedCustomer: ICustomerNPC | null = null;
 
-      if (screenX !== undefined && screenY !== undefined) {
+      if (screenX !== undefined && screenY !== undefined && this.renderer) {
         const hitCustomer = this.renderer.getCustomerAtScreenPoint(screenX, screenY);
-        if (hitCustomer && hitCustomer.state === CustomerState.PAYING) {
-          hitPaying = true;
+        if (hitCustomer && (hitCustomer.earnedAmount || 0) > 0) {
+          collectedCustomer = hitCustomer;
+        }
+
+        // VEYA doğrudan Kasa Masasına tıklanırsa, ilk ödemeyi tahsil et
+        if (!collectedCustomer) {
+          const rect = this.renderer.getCanvasBoundingClientRect();
+          const clickX = screenX - rect.left;
+          const clickY = screenY - rect.top;
+          const deskGx = 18 + branchOffsetX;
+          const deskGy = 9 + branchOffsetY;
+          const cp = this.renderer.gridToScreen(deskGx, deskGy);
+          const z = this.renderer.zoomLevel;
+
+          const centerX = cp.x;
+          const centerY = cp.y - 20 * z;
+          const halfW = Math.max(30, 45 * z);
+          const halfH = Math.max(30, 45 * z);
+
+          if (Math.abs(clickX - centerX) <= halfW && Math.abs(clickY - centerY) <= halfH) {
+            collectedCustomer = payingCustomers[0];
+          }
+        }
+      } else {
+        const distToDesk = Math.hypot(gridPos.x - (18 + branchOffsetX), gridPos.y - (9 + branchOffsetY));
+        if (distToDesk <= 1.8) {
+          collectedCustomer = payingCustomers[0];
         }
       }
 
-      if (!hitPaying) {
-        const distToDesk = Math.hypot(gridPos.x - (18 + branchOffset), gridPos.y - 9);
-        const distToCust = Math.hypot(gridPos.x - payingCustomer.posX, gridPos.y - payingCustomer.posY);
-        if (distToDesk <= 3.0 || distToCust <= 3.0) {
-          hitPaying = true;
-        }
-      }
-
-      if (hitPaying) {
-        this.customerManager.collectPayment(payingCustomer);
+      if (collectedCustomer) {
+        const earned = collectedCustomer.earnedAmount;
+        this.customerManager.collectPayment(collectedCustomer);
         this.soundEngine.playCashRegisterSound();
-        this.showToast(`💵 +₺${payingCustomer.earnedAmount} Tahsil Edildi!`);
+        this.showToast(`💵 +₺${earned} Tahsil Edildi!`);
         return;
       }
     }
 
     // ─────────────────────────────────────────────────────────────
-    // 2.5: Eğitimdeki çalışan/istasyon tıklaması
+    // 4. Eğitimdeki çalışan/istasyon tıklaması
     // ─────────────────────────────────────────────────────────────
     const employees = this.stateStore.getState().employees;
 
     const stationTiles = [
-      { x: 7 + branchOffset, y: 3, chairIdx: 0 },
-      { x: 12 + branchOffset, y: 3, chairIdx: 1 },
-      { x: 17 + branchOffset, y: 3, chairIdx: 2 }
+      { x: 7 + branchOffsetX, y: 3 + branchOffsetY, chairIdx: 0 },
+      { x: 12 + branchOffsetX, y: 3 + branchOffsetY, chairIdx: 1 },
+      { x: 17 + branchOffsetX, y: 3 + branchOffsetY, chairIdx: 2 }
     ];
 
     for (const st of stationTiles) {
@@ -258,25 +349,23 @@ export class App {
       this.uiManager.openEmployeeTrainingModal(empInTrainingClicked);
       return;
     }
-
-    // ─────────────────────────────────────────────────────────────
-    // 3. EN SON: Kilitli mobilya tıklaması
-    // ─────────────────────────────────────────────────────────────
-    if (this.handleLockedFurnitureClick(gridPos)) return;
   }
 
-  private handleLockedFurnitureClick(gridPos: { x: number; y: number }): boolean {
+  private handleLockedFurnitureClick(gridPos: { x: number; y: number }, screenX?: number, screenY?: number): boolean {
     const activeBranchIdx = this.stateStore.getState().activeBranchIndex || 0;
-    const branchOffset = activeBranchIdx * 30;
+    const col = activeBranchIdx % 3;
+    const row = Math.floor(activeBranchIdx / 3);
+    const branchOffsetX = col * 30;
+    const branchOffsetY = row * 28;
     const branch = this.stateStore.getActiveBranch();
     const sofasCount = branch.waitingSofasCount || 1;
     const stationsCount = branch.barberStationsCount || 1;
 
     // Locked waiting sofa tiles: (3,14) idx0 always active; (8,14) idx1; (13,14) idx2
     const sofaTiles = [
-      { x: 3 + branchOffset, y: 14 },
-      { x: 8 + branchOffset, y: 14 },
-      { x: 13 + branchOffset, y: 14 }
+      { x: 3 + branchOffsetX, y: 14 + branchOffsetY },
+      { x: 8 + branchOffsetX, y: 14 + branchOffsetY },
+      { x: 13 + branchOffsetX, y: 14 + branchOffsetY }
     ];
     for (let i = 0; i < sofaTiles.length; i++) {
       if (i < sofasCount) continue; // already unlocked
@@ -287,18 +376,77 @@ export class App {
       }
     }
 
-    // Locked 2nd barber station tiles: (12,3) mirror + (12,4) chair
+    // Convert screen coordinates to canvas-relative coordinates
+    let clickX: number | undefined;
+    let clickY: number | undefined;
+    if (screenX !== undefined && screenY !== undefined && this.renderer) {
+      const rect = this.renderer.getCanvasBoundingClientRect();
+      clickX = screenX - rect.left;
+      clickY = screenY - rect.top;
+    }
+
+    // Locked 2nd barber station tiles: mirror at (12, 3), chair at (12, 4)
     if (stationsCount < 2) {
-      if (Math.hypot(gridPos.x - (12 + branchOffset), gridPos.y - 3) <= 2.2 || Math.hypot(gridPos.x - (12 + branchOffset), gridPos.y - 4) <= 2.2) {
+      let hitStation2 = false;
+      const targetGx = 12 + branchOffsetX;
+      const targetGy = 3 + branchOffsetY;
+      const cp2 = this.renderer.gridToScreen(targetGx, targetGy);
+      const z = this.renderer.zoomLevel;
+      // Visual bounding box covering mirror sprite, badge, and full wall top area
+      const centerX = cp2.x;
+      const centerY = cp2.y - 135 * z;
+      const halfW = Math.max(40, 56 * z);
+      const halfH = Math.max(95, 145 * z);
+
+      if (clickX !== undefined && clickY !== undefined) {
+        if (Math.abs(clickX - centerX) <= halfW && Math.abs(clickY - centerY) <= halfH) {
+          hitStation2 = true;
+        }
+      } else {
+        if (Math.abs(gridPos.x - targetGx) <= 0.8 && Math.abs(gridPos.y - targetGy) <= 0.8) {
+          hitStation2 = true;
+        }
+      }
+
+      if (hitStation2) {
         this.uiManager.openBuyFurnitureModal('station', 1);
         return true;
       }
     }
 
-    // Locked 3rd barber station tiles: (17,3) mirror + (17,4) chair (Unlocked via Salon Expansion upgrade)
+    // Locked 3rd barber station tiles: mirror at (17, 3), chair at (17, 4) ("Salonu Büyüt" / 3. İstasyon)
     if (stationsCount < 3) {
-      if (Math.hypot(gridPos.x - (17 + branchOffset), gridPos.y - 3) <= 2.2 || Math.hypot(gridPos.x - (17 + branchOffset), gridPos.y - 4) <= 2.2) {
-        this.uiManager.openUpgradesModal();
+      let hitStation3 = false;
+      const targetGx = 17 + branchOffsetX;
+      const targetGy = 3 + branchOffsetY;
+      const cp3 = this.renderer.gridToScreen(targetGx, targetGy);
+      const z = this.renderer.zoomLevel;
+      // Visual bounding box covering mirror sprite, badge, and full wall top area
+      const centerX = cp3.x;
+      const centerY = cp3.y - 135 * z;
+      const halfW = Math.max(40, 56 * z);
+      const halfH = Math.max(95, 145 * z);
+
+      if (clickX !== undefined && clickY !== undefined) {
+        if (Math.abs(clickX - centerX) <= halfW && Math.abs(clickY - centerY) <= halfH) {
+          hitStation3 = true;
+        }
+      } else {
+        if (Math.abs(gridPos.x - targetGx) <= 0.8 && Math.abs(gridPos.y - targetGy) <= 0.8) {
+          hitStation3 = true;
+        }
+      }
+
+      if (hitStation3) {
+        this.uiManager.openBuyFurnitureModal('station', 2);
+        return true;
+      }
+    }
+
+    // Branch under construction speedup click check
+    if (branch.constructionEndsTimestamp && Date.now() < branch.constructionEndsTimestamp) {
+      if (Math.hypot(gridPos.x - (12 + branchOffsetX), gridPos.y - (7 + branchOffsetY)) <= 3.5) {
+        this.stateStore.speedUpBranchConstructionWithDiamonds(activeBranchIdx);
         return true;
       }
     }

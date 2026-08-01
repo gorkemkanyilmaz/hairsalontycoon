@@ -867,3 +867,77 @@ html, body {
   transform: scale(1.05);
 }
 
+/* ─────────────────────────────────────────────────────────────
+   MOBILE RESPONSIVE & IPHONE 14 PRO OPTIMIZATIONS
+   ───────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .hud-header {
+    height: 52px;
+    padding: calc(env(safe-area-inset-top, 0px) + 2px) 8px 4px 8px;
+    gap: 4px;
+  }
+
+  .brand-badge {
+    padding: 3px 6px;
+  }
+
+  .brand-title {
+    font-size: 10px;
+  }
+
+  .top-nav-btn {
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+
+  #branch-switcher-nav {
+    top: 56px !important;
+    max-width: 96vw;
+    overflow-x: auto;
+    padding: 2px 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #branch-construction-hud-bar {
+    top: 86px !important;
+    width: 92vw !important;
+    font-size: 10px !important;
+  }
+
+  #training-hud-bar {
+    top: 90px !important;
+    width: 92vw !important;
+  }
+
+  .modal-container {
+    max-width: 95vw !important;
+    max-height: 88vh !important;
+    padding: 12px !important;
+    border-radius: 18px !important;
+  }
+
+  .modal-header {
+    padding-bottom: 8px !important;
+  }
+
+  .modal-title {
+    font-size: 15px !important;
+  }
+
+  .upgrades-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  .upgrade-card {
+    padding: 10px !important;
+    gap: 8px !important;
+  }
+
+  .hud-toast {
+    bottom: 80px !important;
+    font-size: 12px !important;
+    padding: 8px 16px !important;
+  }
+}
+

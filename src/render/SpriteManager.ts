@@ -1,10 +1,105 @@
-// Commercial Studio-Grade 2D Isometric SVG & Canvas Asset Engine
+import cashRegisterUrl from '../../assets/cash_register.png';
+import productShelfUrl from '../../assets/product_shelf.png';
+import salonFloorUrl from '../../assets/salon_floor_tile.png';
+import waitingSofaUrl from '../../assets/waiting_sofa.png';
+import salonChairUrl from '../../assets/salon_chair.png';
+import pottedPlantUrl from '../../assets/potted_plant.png';
+import salonDoorUrl from '../../assets/salon_door.png';
 
 export class SpriteManager {
   private static instance: SpriteManager;
   private cache: Map<string, HTMLCanvasElement> = new Map();
+  private cashRegisterImg: HTMLImageElement | null = null;
+  private productShelfImg: HTMLImageElement | null = null;
+  private salonFloorImg: HTMLImageElement | null = null;
+  private waitingSofaImg: HTMLImageElement | null = null;
+  private salonChairImg: HTMLImageElement | null = null;
+  private pottedPlantImg: HTMLImageElement | null = null;
+  private salonDoorImg: HTMLImageElement | null = null;
 
-  private constructor() {}
+  private constructor() {
+    this.loadCashRegisterImage();
+    this.loadProductShelfImage();
+    this.loadSalonFloorImage();
+    this.loadWaitingSofaImage();
+    this.loadSalonChairImage();
+    this.loadPottedPlantImage();
+    this.loadSalonDoorImage();
+  }
+
+  private quantizeScale(scale: number): number {
+    return Math.round(scale * 20) / 20;
+  }
+
+  private loadCashRegisterImage(): void {
+    if (this.cashRegisterImg) return;
+    const img = new Image();
+    img.src = cashRegisterUrl;
+    img.onload = () => {
+      this.cashRegisterImg = img;
+      this.cache.clear();
+    };
+  }
+
+  private loadProductShelfImage(): void {
+    if (this.productShelfImg) return;
+    const img = new Image();
+    img.src = productShelfUrl;
+    img.onload = () => {
+      this.productShelfImg = img;
+      this.cache.clear();
+    };
+  }
+
+  private loadSalonFloorImage(): void {
+    if (this.salonFloorImg) return;
+    const img = new Image();
+    img.src = salonFloorUrl;
+    img.onload = () => {
+      this.salonFloorImg = img;
+      this.cache.clear();
+    };
+  }
+
+  private loadWaitingSofaImage(): void {
+    if (this.waitingSofaImg) return;
+    const img = new Image();
+    img.src = waitingSofaUrl;
+    img.onload = () => {
+      this.waitingSofaImg = img;
+      this.cache.clear();
+    };
+  }
+
+  private loadSalonChairImage(): void {
+    if (this.salonChairImg) return;
+    const img = new Image();
+    img.src = salonChairUrl;
+    img.onload = () => {
+      this.salonChairImg = img;
+      this.cache.clear();
+    };
+  }
+
+  private loadPottedPlantImage(): void {
+    if (this.pottedPlantImg) return;
+    const img = new Image();
+    img.src = pottedPlantUrl;
+    img.onload = () => {
+      this.pottedPlantImg = img;
+      this.cache.clear();
+    };
+  }
+
+  private loadSalonDoorImage(): void {
+    if (this.salonDoorImg) return;
+    const img = new Image();
+    img.src = salonDoorUrl;
+    img.onload = () => {
+      this.salonDoorImg = img;
+      this.cache.clear();
+    };
+  }
 
   public static getInstance(): SpriteManager {
     if (!SpriteManager.instance) {
@@ -13,372 +108,295 @@ export class SpriteManager {
     return SpriteManager.instance;
   }
 
-  // 1. Soft Pastel Cream & Blush Pink Rectangular Tile
-  public getParquetTileSprite(isAlternate: boolean, scale: number = 1): HTMLCanvasElement {
-    const key = `pastel_rect_tile_${isAlternate}_${scale.toFixed(2)}`;
-    if (this.cache.has(key)) return this.cache.get(key)!;
-
+  // 1. High-Definition Luxury Pink & White Marble Floor Tile
+  public getParquetTileSprite(isAlternate: boolean, scale: number = 1, tileX: number = 0, tileY: number = 0): HTMLCanvasElement {
     const tw = Math.max(2, Math.round(56 * scale));
     const th = Math.max(2, Math.round(38 * scale));
+    const key = `pink_marble_tile_${isAlternate}_${tileX % 2}_${tileY % 2}_${tw}_${th}`;
+    if (this.cache.has(key)) return this.cache.get(key)!;
+
     const canvas = document.createElement('canvas');
     canvas.width = tw;
     canvas.height = th;
     const ctx = canvas.getContext('2d')!;
 
-    const tileGrad = ctx.createLinearGradient(0, 0, tw, th);
-    if (isAlternate) {
-      tileGrad.addColorStop(0, '#ffffff');
-      tileGrad.addColorStop(0.6, '#fcf5f8'); // Soft Pastel Cream
-      tileGrad.addColorStop(1, '#fae8ff');
-    } else {
-      tileGrad.addColorStop(0, '#fdf2f8');
-      tileGrad.addColorStop(0.6, '#fbcfe8'); // Pastel Blush Pink
-      tileGrad.addColorStop(1, '#f472b6');
-    }
-    ctx.fillStyle = tileGrad;
-    ctx.fillRect(0, 0, tw, th);
+    if (this.salonFloorImg && this.salonFloorImg.complete && this.salonFloorImg.naturalWidth > 0) {
+      // Map 1 marble tile image over 2x2 grid tiles for seamless high-res marble veining
+      const srcW = this.salonFloorImg.naturalWidth / 2;
+      const srcH = this.salonFloorImg.naturalHeight / 2;
+      const sx = ((tileX % 2 + 2) % 2) * srcW;
+      const sy = ((tileY % 2 + 2) % 2) * srcH;
 
-    ctx.strokeStyle = 'rgba(244, 114, 182, 0.3)';
-    ctx.lineWidth = Math.max(1, 1 * scale);
-    ctx.strokeRect(0, 0, tw, th);
+      ctx.drawImage(this.salonFloorImg, sx, sy, srcW, srcH, 0, 0, tw, th);
+    } else {
+      const tileGrad = ctx.createLinearGradient(0, 0, tw, th);
+      if (isAlternate) {
+        tileGrad.addColorStop(0, '#ffffff');
+        tileGrad.addColorStop(0.6, '#fcf5f8');
+        tileGrad.addColorStop(1, '#fae8ff');
+      } else {
+        tileGrad.addColorStop(0, '#fdf2f8');
+        tileGrad.addColorStop(0.6, '#fbcfe8');
+        tileGrad.addColorStop(1, '#f472b6');
+      }
+      ctx.fillStyle = tileGrad;
+      ctx.fillRect(0, 0, tw, th);
+
+      ctx.strokeStyle = 'rgba(244, 114, 182, 0.3)';
+      ctx.lineWidth = Math.max(1, 1 * scale);
+      ctx.strokeRect(0, 0, tw, th);
+    }
 
     this.cache.set(key, canvas);
     return canvas;
   }
 
-  // 2. Decorative Potted Plants (Monstera, Rose Vase, Golden Palm)
+  // 2. Decorative Potted Plants (Pink Flower Pot on Metal Stand - Exact Aspect Ratio)
   public getPottedPlantSprite(type: 'MONSTERA' | 'ROSE_VASE' | 'GOLDEN_PALM' = 'MONSTERA', scale: number = 1): HTMLCanvasElement {
-    const key = `plant_${type}_${scale}`;
+    const qScale = this.quantizeScale(scale);
+    const key = `potted_plant_flower_v4_${type}_${qScale}`;
+    if (this.cache.has(key)) return this.cache.get(key)!;
+
+    let aspect = 1.8347; // 677 / 369
+    if (this.pottedPlantImg && this.pottedPlantImg.complete && this.pottedPlantImg.naturalHeight > 0) {
+      aspect = this.pottedPlantImg.naturalWidth / this.pottedPlantImg.naturalHeight;
+    }
+
+    const imgH = Math.round(110 * scale);
+    const imgW = Math.round(imgH * aspect);
+
+    const w = imgW + Math.round(20 * scale);
+    const h = imgH + Math.round(20 * scale);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d')!;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    const cx = w / 2;
+    const cy = h * 0.86;
+
+    // Soft oval shadow under metal stand base
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 3 * scale, 34 * scale, 12 * scale, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+    ctx.fill();
+    ctx.restore();
+
+    if (this.pottedPlantImg && this.pottedPlantImg.complete && this.pottedPlantImg.naturalWidth > 0) {
+      ctx.drawImage(this.pottedPlantImg, cx - imgW / 2, cy - imgH + 4 * scale, imgW, imgH);
+    } else {
+      ctx.fillStyle = '#fbcfe8';
+      ctx.fillRect(cx - 14 * scale, cy - 26 * scale, 28 * scale, 26 * scale);
+    }
+
+    this.cache.set(key, canvas);
+    return canvas;
+  }
+
+  // 3. Barber Chair Placeholder (Included in 3D Styling Station Image 2)
+  public getBarberChairSprite(scale: number = 1): HTMLCanvasElement {
+    const key = `styling_chair_v2_${scale}`;
     if (this.cache.has(key)) return this.cache.get(key)!;
 
     const canvas = document.createElement('canvas');
     const w = Math.round(90 * scale);
-    const h = Math.round(110 * scale);
+    const h = Math.round(90 * scale);
     canvas.width = w;
     canvas.height = h;
+    this.cache.set(key, canvas);
+    return canvas;
+  }
+
+  // 4. Reception Counter (Pink Executive Desk - No Shadow)
+  public getReceptionDeskSprite(scale: number = 1): HTMLCanvasElement {
+    const qScale = this.quantizeScale(scale);
+    const key = `reception_desk_pink_noshadow_v9_${qScale}`;
+    if (this.cache.has(key)) return this.cache.get(key)!;
+
+    let aspect = 0.724; // 425 / 587
+    if (this.cashRegisterImg && this.cashRegisterImg.complete && this.cashRegisterImg.naturalHeight > 0) {
+      aspect = this.cashRegisterImg.naturalWidth / this.cashRegisterImg.naturalHeight;
+    }
+
+    const imgH = Math.round(230 * scale);
+    const imgW = Math.round(imgH * aspect);
+
+    const w = Math.round(210 * scale);
+    const h = Math.round(250 * scale);
+
+    const supersample = 2;
+    const canvas = document.createElement('canvas');
+    canvas.width = w * supersample;
+    canvas.height = h * supersample;
     const ctx = canvas.getContext('2d')!;
+    ctx.scale(supersample, supersample);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     const cx = w / 2;
-    const cy = h * 0.82;
+    const cy = h * 0.86;
 
-    // Drop Shadow
-    ctx.beginPath();
-    ctx.ellipse(cx, cy + 4 * scale, 22 * scale, 10 * scale, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-    ctx.fill();
+    if (this.cashRegisterImg && this.cashRegisterImg.complete && this.cashRegisterImg.naturalWidth > 0) {
+      ctx.drawImage(this.cashRegisterImg, cx - imgW / 2, cy - imgH + 10 * scale, imgW, imgH);
+    } else {
+      const deskW = 150 * scale;
+      const deskH = 80 * scale;
 
-    if (type === 'MONSTERA') {
-      // White Marble Pot
+      ctx.fillStyle = '#3b0764';
+      ctx.fillRect(cx - deskW / 2, cy - deskH, deskW, deskH);
+
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(cx - 14 * scale, cy - 26 * scale, 28 * scale, 26 * scale);
+      ctx.fillRect(cx - deskW / 2 + 8 * scale, cy - deskH + 10 * scale, deskW - 16 * scale, deskH - 18 * scale);
       ctx.strokeStyle = '#f472b6';
-      ctx.lineWidth = 2 * scale;
-      ctx.strokeRect(cx - 14 * scale, cy - 26 * scale, 28 * scale, 26 * scale);
-
-      // Lush Monstera Leaves
-      ctx.fillStyle = '#10b981';
-      [-12, 0, 12].forEach((ox) => {
-        ctx.beginPath();
-        ctx.arc(cx + ox * scale, cy - 42 * scale, 14 * scale, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#047857';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-      });
-    } else if (type === 'ROSE_VASE') {
-      // Gold Vase
-      ctx.fillStyle = '#fbbf24';
-      ctx.beginPath();
-      ctx.ellipse(cx, cy - 16 * scale, 12 * scale, 16 * scale, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#d97706';
-      ctx.lineWidth = 2 * scale;
-      ctx.stroke();
-
-      // Pink Roses
-      ctx.fillStyle = '#f472b6';
-      [-10, 0, 10].forEach((ox, i) => {
-        ctx.beginPath();
-        ctx.arc(cx + ox * scale, cy - 36 * scale - (i % 2) * 6 * scale, 9 * scale, 0, Math.PI * 2);
-        ctx.fill();
-      });
-    } else { // GOLDEN_PALM
-      // Ceramic Pink Pot
-      ctx.fillStyle = '#fbcfe8';
-      ctx.fillRect(cx - 12 * scale, cy - 24 * scale, 24 * scale, 24 * scale);
-
-      // Palm Fronds
-      ctx.strokeStyle = '#059669';
-      ctx.lineWidth = 3 * scale;
-      [-15, 0, 15].forEach((angle) => {
-        ctx.beginPath();
-        ctx.moveTo(cx, cy - 24 * scale);
-        ctx.lineTo(cx + angle * scale, cy - 50 * scale);
-        ctx.stroke();
-      });
+      ctx.lineWidth = 2.5 * scale;
+      ctx.strokeRect(cx - deskW / 2 + 8 * scale, cy - deskH + 10 * scale, deskW - 16 * scale, deskH - 18 * scale);
     }
 
     this.cache.set(key, canvas);
     return canvas;
   }
 
-  // 3. Studio 3D Women's Styling Chair
-  public getBarberChairSprite(scale: number = 1): HTMLCanvasElement {
-    const key = `styling_chair_${scale}`;
-    if (this.cache.has(key)) return this.cache.get(key)!;
-
-    const canvas = document.createElement('canvas');
-    const w = Math.round(140 * scale);
-    const h = Math.round(160 * scale);
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d')!;
-
-    const cx = w / 2;
-    const cy = h * 0.76;
-
-    ctx.beginPath();
-    ctx.ellipse(cx, cy + 6 * scale, 36 * scale, 18 * scale, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-    ctx.fill();
-
-    // Rose Gold Base Disc
-    ctx.beginPath();
-    ctx.ellipse(cx, cy - 8 * scale, 28 * scale, 14 * scale, 0, 0, Math.PI * 2);
-    const baseGrad = ctx.createLinearGradient(cx - 25, cy, cx + 25, cy);
-    baseGrad.addColorStop(0, '#fde2e4');
-    baseGrad.addColorStop(0.4, '#ffb5a7');
-    baseGrad.addColorStop(0.8, '#c97064');
-    baseGrad.addColorStop(1, '#68322b');
-    ctx.fillStyle = baseGrad;
-    ctx.fill();
-    ctx.strokeStyle = '#fde2e4';
-    ctx.lineWidth = 2 * scale;
-    ctx.stroke();
-
-    ctx.fillStyle = '#64748b';
-    ctx.fillRect(cx - 6 * scale, cy - 30 * scale, 12 * scale, 22 * scale);
-    ctx.fillStyle = '#ffb5a7';
-    ctx.fillRect(cx - 24 * scale, cy - 16 * scale, 48 * scale, 5 * scale);
-
-    // Velvet Magenta Cushion Seat
-    ctx.beginPath();
-    ctx.ellipse(cx, cy - 38 * scale, 28 * scale, 14 * scale, 0, 0, Math.PI * 2);
-    const seatGrad = ctx.createLinearGradient(cx - 20, cy - 45, cx + 20, cy - 30);
-    seatGrad.addColorStop(0, '#f72585');
-    seatGrad.addColorStop(0.6, '#b5179e');
-    seatGrad.addColorStop(1, '#7209b7');
-    ctx.fillStyle = seatGrad;
-    ctx.fill();
-    ctx.strokeStyle = '#ff758f';
-    ctx.lineWidth = 2 * scale;
-    ctx.stroke();
-
-    ctx.fillStyle = '#ffb5a7';
-    ctx.fillRect(cx - 34 * scale, cy - 60 * scale, 10 * scale, 24 * scale);
-    ctx.fillRect(cx + 24 * scale, cy - 60 * scale, 10 * scale, 24 * scale);
-
-    ctx.beginPath();
-    ctx.roundRect(cx - 22 * scale, cy - 92 * scale, 44 * scale, 48 * scale, 10 * scale);
-    const backGrad = ctx.createLinearGradient(cx - 20, cy - 90, cx + 20, cy - 45);
-    backGrad.addColorStop(0, '#f72585');
-    backGrad.addColorStop(0.5, '#b5179e');
-    backGrad.addColorStop(1, '#7209b7');
-    ctx.fillStyle = backGrad;
-    ctx.fill();
-    ctx.strokeStyle = '#ff758f';
-    ctx.lineWidth = 2 * scale;
-    ctx.stroke();
-
-    this.cache.set(key, canvas);
-    return canvas;
-  }
-
-  // 4. Reception Counter
-  public getReceptionDeskSprite(scale: number = 1): HTMLCanvasElement {
-    const key = `reception_desk_female_chic_${scale}`;
-    if (this.cache.has(key)) return this.cache.get(key)!;
-
-    const canvas = document.createElement('canvas');
-    const w = Math.round(170 * scale);
-    const h = Math.round(160 * scale);
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d')!;
-
-    const cx = w / 2;
-    const cy = h * 0.75;
-
-    ctx.beginPath();
-    ctx.ellipse(cx, cy + 10 * scale, 60 * scale, 24 * scale, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-    ctx.fill();
-
-    const deskW = 100 * scale;
-    const deskH = 54 * scale;
-
-    ctx.fillStyle = '#3b0764';
-    ctx.fillRect(cx - deskW / 2, cy - deskH, deskW, deskH);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(cx - deskW / 2 + 8 * scale, cy - deskH + 10 * scale, deskW - 16 * scale, deskH - 18 * scale);
-    ctx.strokeStyle = '#f472b6';
-    ctx.lineWidth = 2.5 * scale;
-    ctx.strokeRect(cx - deskW / 2 + 8 * scale, cy - deskH + 10 * scale, deskW - 16 * scale, deskH - 18 * scale);
-
-    ctx.beginPath();
-    ctx.ellipse(cx, cy - deskH, deskW / 2 + 8 * scale, 16 * scale, 0, 0, Math.PI * 2);
-    const topGrad = ctx.createLinearGradient(cx - 50, cy - deskH, cx + 50, cy - deskH);
-    topGrad.addColorStop(0, '#ffffff');
-    topGrad.addColorStop(0.5, '#fde2e4');
-    topGrad.addColorStop(1, '#f472b6');
-    ctx.fillStyle = topGrad;
-    ctx.fill();
-    ctx.strokeStyle = '#f472b6';
-    ctx.lineWidth = 2 * scale;
-    ctx.stroke();
-
-    ctx.fillStyle = '#0f172a';
-    ctx.fillRect(cx - 8 * scale, cy - deskH - 20 * scale, 16 * scale, 12 * scale);
-
-    ctx.beginPath();
-    ctx.roundRect(cx - 20 * scale, cy - deskH - 38 * scale, 40 * scale, 24 * scale, 4 * scale);
-    ctx.fillStyle = '#1e293b';
-    ctx.fill();
-    ctx.strokeStyle = '#f72585';
-    ctx.lineWidth = 2 * scale;
-    ctx.stroke();
-
-    ctx.fillStyle = '#b5179e';
-    ctx.fillRect(cx - 18 * scale, cy - deskH - 36 * scale, 36 * scale, 20 * scale);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `bold ${9 * scale}px sans-serif`;
-    ctx.fillText('₺ CASH', cx - 14 * scale, cy - deskH - 22 * scale);
-
-    // Rose Gold Vase with Pink Orchid Flowers
-    ctx.fillStyle = '#fbbf24';
-    ctx.fillRect(cx + 28 * scale, cy - deskH - 14 * scale, 12 * scale, 14 * scale);
-
-    ctx.beginPath();
-    ctx.moveTo(cx + 34 * scale, cy - deskH - 14 * scale);
-    ctx.quadraticCurveTo(cx + 40 * scale, cy - deskH - 30 * scale, cx + 30 * scale, cy - deskH - 38 * scale);
-    ctx.strokeStyle = '#15803d';
-    ctx.lineWidth = 2 * scale;
-    ctx.stroke();
-
-    ctx.fillStyle = '#f472b6';
-    [
-      { x: cx + 34 * scale, y: cy - deskH - 24 * scale },
-      { x: cx + 38 * scale, y: cy - deskH - 32 * scale },
-      { x: cx + 30 * scale, y: cy - deskH - 38 * scale }
-    ].forEach((p) => {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 4 * scale, 0, Math.PI * 2);
-      ctx.fill();
-    });
-
-    this.cache.set(key, canvas);
-    return canvas;
-  }
-
-  // 5. Mirror Station
+  // 5. Hairdresser Styling Station (Pink Pearl Mirror + Pink Barber Chair)
   public getBarberStationSprite(scale: number = 1): HTMLCanvasElement {
-    const key = `styling_station_${scale}`;
+    const key = `styling_station_v3_${scale}`;
     if (this.cache.has(key)) return this.cache.get(key)!;
 
     const canvas = document.createElement('canvas');
-    const w = Math.round(140 * scale);
-    const h = Math.round(190 * scale);
+    const w = Math.round(150 * scale);
+    const h = Math.round(210 * scale);
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext('2d')!;
 
     const cx = w / 2;
-    const cy = h - 20 * scale;
+    const cy = h * 0.86;
 
-    const frameW = 90 * scale;
-    const frameH = 145 * scale;
+    // Drop Shadow for circular gold chair base and table legs
+    ctx.save();
+    // 1. Wide soft shadow for table legs & frame structure
+    ctx.beginPath();
+    ctx.ellipse(cx, cy - 8 * scale, 52 * scale, 16 * scale, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.16)';
+    ctx.fill();
 
-    ctx.fillStyle = '#1c1917';
-    ctx.fillRect(cx - frameW / 2, cy - frameH, frameW, frameH);
-    ctx.strokeStyle = '#ffb5a7';
-    ctx.lineWidth = 2 * scale;
-    ctx.strokeRect(cx - frameW / 2, cy - frameH, frameW, frameH);
+    // 2. Main shadow for circular gold chair base
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 3 * scale, 42 * scale, 17 * scale, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+    ctx.fill();
 
-    const mirrorW = frameW - 16 * scale;
-    const mirrorH = frameH - 44 * scale;
-    const mirrorX = cx - mirrorW / 2;
-    const mirrorY = cy - frameH + 10 * scale;
+    // 3. Crisp contact shadow under the gold base plate
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 4 * scale, 28 * scale, 10 * scale, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+    ctx.fill();
+    ctx.restore();
 
-    ctx.fillStyle = 'rgba(247, 37, 133, 0.25)';
-    ctx.fillRect(mirrorX - 6, mirrorY - 6, mirrorW + 12, mirrorH + 12);
-
-    const glassGrad = ctx.createLinearGradient(mirrorX, mirrorY, mirrorX + mirrorW, mirrorY + mirrorH);
-    glassGrad.addColorStop(0, 'rgba(255, 240, 245, 0.95)');
-    glassGrad.addColorStop(0.4, 'rgba(251, 207, 232, 0.6)');
-    glassGrad.addColorStop(1, 'rgba(244, 114, 182, 0.3)');
-    ctx.fillStyle = glassGrad;
-    ctx.fillRect(mirrorX, mirrorY, mirrorW, mirrorH);
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2 * scale;
-    ctx.strokeRect(mirrorX, mirrorY, mirrorW, mirrorH);
-
-    const shelfY = mirrorY + mirrorH + 4 * scale;
-    ctx.fillStyle = '#f8fafc';
-    ctx.fillRect(cx - frameW / 2 - 6 * scale, shelfY, frameW + 12 * scale, 16 * scale);
-    ctx.strokeStyle = '#cbd5e1';
-    ctx.strokeRect(cx - frameW / 2 - 6 * scale, shelfY, frameW + 12 * scale, 16 * scale);
-
-    ctx.fillStyle = '#f72585';
-    ctx.fillRect(cx - 32 * scale, shelfY - 14 * scale, 8 * scale, 14 * scale);
-    ctx.fillStyle = '#ef476f';
-    ctx.fillRect(cx + 18 * scale, shelfY - 12 * scale, 14 * scale, 7 * scale);
+    if (this.salonChairImg && this.salonChairImg.complete && this.salonChairImg.naturalWidth > 0) {
+      const imgW = w - 10 * scale;
+      const imgH = h - 15 * scale;
+      ctx.drawImage(this.salonChairImg, cx - imgW / 2, cy - imgH + 10 * scale, imgW, imgH);
+    } else {
+      const frameW = 90 * scale;
+      const frameH = 145 * scale;
+      ctx.fillStyle = '#1c1917';
+      ctx.fillRect(cx - frameW / 2, cy - frameH, frameW, frameH);
+    }
 
     this.cache.set(key, canvas);
     return canvas;
   }
 
-  // 6. Velvet Lounge Waiting Sofa
+  // 6. Velvet Lounge Waiting Armchair (1.5x Smaller, Preserved Aspect Ratio)
   public getWaitingSofaSprite(scale: number = 1): HTMLCanvasElement {
-    const key = `waiting_sofa_female_${scale}`;
+    const key = `waiting_sofa_v4_${scale}`;
     if (this.cache.has(key)) return this.cache.get(key)!;
 
+    let aspect = 1.8347; // 677 / 369
+    if (this.waitingSofaImg && this.waitingSofaImg.complete && this.waitingSofaImg.naturalHeight > 0) {
+      aspect = this.waitingSofaImg.naturalWidth / this.waitingSofaImg.naturalHeight;
+    }
+
+    const imgH = Math.round(100 * scale);
+    const imgW = Math.round(imgH * aspect);
+
+    const w = imgW + Math.round(20 * scale);
+    const h = imgH + Math.round(20 * scale);
+
     const canvas = document.createElement('canvas');
-    const w = Math.round(130 * scale);
-    const h = Math.round(110 * scale);
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext('2d')!;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     const cx = w / 2;
-    const cy = h * 0.72;
+    const cy = h * 0.84;
 
+    // Drop Shadow under wooden legs
+    ctx.save();
     ctx.beginPath();
-    ctx.ellipse(cx, cy + 8 * scale, 46 * scale, 18 * scale, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+    ctx.ellipse(cx, cy + 4 * scale, 68 * scale, 24 * scale, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
     ctx.fill();
+    ctx.restore();
 
-    ctx.fillStyle = '#ffb5a7';
-    ctx.fillRect(cx - 38 * scale, cy - 4 * scale, 6 * scale, 12 * scale);
-    ctx.fillRect(cx + 32 * scale, cy - 4 * scale, 6 * scale, 12 * scale);
+    if (this.waitingSofaImg && this.waitingSofaImg.complete && this.waitingSofaImg.naturalWidth > 0) {
+      ctx.drawImage(this.waitingSofaImg, cx - imgW / 2, cy - imgH + 8 * scale, imgW, imgH);
+    } else {
+      ctx.fillStyle = '#ffb5a7';
+      ctx.fillRect(cx - 50 * scale, cy - 6 * scale, 8 * scale, 16 * scale);
+    }
 
+    this.cache.set(key, canvas);
+    return canvas;
+  }
+
+  // 12. Pink Isometric Entrance Door (Height matches NPC height, crisp aspect ratio)
+  public getSalonDoorSprite(scale: number = 1): HTMLCanvasElement {
+    const key = `salon_door_v1_${scale}`;
+    if (this.cache.has(key)) return this.cache.get(key)!;
+
+    let aspect = 0.4276; // 127 / 297
+    if (this.salonDoorImg && this.salonDoorImg.complete && this.salonDoorImg.naturalHeight > 0) {
+      aspect = this.salonDoorImg.naturalWidth / this.salonDoorImg.naturalHeight;
+    }
+
+    // Door height matches NPC height (120 * scale)
+    const imgH = Math.round(120 * scale);
+    const imgW = Math.round(imgH * aspect);
+
+    const w = Math.round(70 * scale);
+    const h = Math.round(140 * scale);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d')!;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    const cx = w / 2;
+    const cy = h * 0.86;
+
+    // Ground shadow under door frame
+    ctx.save();
     ctx.beginPath();
-    ctx.roundRect(cx - 42 * scale, cy - 28 * scale, 84 * scale, 28 * scale, 8 * scale);
-    const cushionGrad = ctx.createLinearGradient(cx - 40, cy - 25, cx + 40, cy - 10);
-    cushionGrad.addColorStop(0, '#f72585');
-    cushionGrad.addColorStop(0.5, '#b5179e');
-    cushionGrad.addColorStop(1, '#7209b7');
-    ctx.fillStyle = cushionGrad;
+    ctx.ellipse(cx, cy + 3 * scale, 28 * scale, 10 * scale, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.26)';
     ctx.fill();
-    ctx.strokeStyle = '#ff758f';
-    ctx.lineWidth = 2 * scale;
-    ctx.stroke();
+    ctx.restore();
 
-    ctx.beginPath();
-    ctx.roundRect(cx - 40 * scale, cy - 60 * scale, 80 * scale, 36 * scale, 10 * scale);
-    ctx.fillStyle = '#b5179e';
-    ctx.fill();
-    ctx.stroke();
+    if (this.salonDoorImg && this.salonDoorImg.complete && this.salonDoorImg.naturalWidth > 0) {
+      ctx.drawImage(this.salonDoorImg, cx - imgW / 2, cy - imgH, imgW, imgH);
+    } else {
+      ctx.fillStyle = '#f472b6';
+      ctx.fillRect(cx - 15 * scale, cy - imgH, 30 * scale, imgH);
+    }
 
     this.cache.set(key, canvas);
     return canvas;
@@ -472,45 +490,52 @@ export class SpriteManager {
 
   // 8. 3D Retail Display Shelf (Shampoos, Oils, Waxes)
   public getRetailShelfSprite(scale: number = 1): HTMLCanvasElement {
-    const key = `retail_shelf_${scale}`;
+    const key = `retail_shelf_v2_${scale}`;
     if (this.cache.has(key)) return this.cache.get(key)!;
 
     const canvas = document.createElement('canvas');
-    const w = Math.round(130 * scale);
-    const h = Math.round(170 * scale);
+    const w = Math.round(160 * scale);
+    const h = Math.round(200 * scale);
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext('2d')!;
 
     const cx = w / 2;
-    const cy = h * 0.78;
+    const cy = h * 0.82;
 
+    // Drop Shadow
+    ctx.save();
     ctx.beginPath();
-    ctx.ellipse(cx, cy + 6 * scale, 44 * scale, 18 * scale, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+    ctx.ellipse(cx, cy + 4 * scale, 52 * scale, 18 * scale, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
     ctx.fill();
+    ctx.restore();
 
-    const shelfW = 84 * scale;
-    const shelfH = 120 * scale;
+    if (this.productShelfImg && this.productShelfImg.complete && this.productShelfImg.naturalWidth > 0) {
+      const imgW = w - 10 * scale;
+      const imgH = h - 20 * scale;
+      ctx.drawImage(this.productShelfImg, cx - imgW / 2, cy - imgH + 10 * scale, imgW, imgH);
+    } else {
+      const shelfW = 84 * scale;
+      const shelfH = 120 * scale;
 
-    ctx.fillStyle = '#3b0764';
-    ctx.fillRect(cx - shelfW / 2, cy - shelfH, shelfW, shelfH);
-    ctx.strokeStyle = '#f472b6';
-    ctx.lineWidth = 2.5 * scale;
-    ctx.strokeRect(cx - shelfW / 2, cy - shelfH, shelfW, shelfH);
+      ctx.fillStyle = '#3b0764';
+      ctx.fillRect(cx - shelfW / 2, cy - shelfH, shelfW, shelfH);
+      ctx.strokeStyle = '#f472b6';
+      ctx.lineWidth = 2.5 * scale;
+      ctx.strokeRect(cx - shelfW / 2, cy - shelfH, shelfW, shelfH);
 
-    // Shelves
-    [0.3, 0.6, 0.9].forEach((ratio) => {
-      const sy = cy - shelfH + shelfH * ratio;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(cx - shelfW / 2 + 4 * scale, sy, shelfW - 8 * scale, 6 * scale);
+      [0.3, 0.6, 0.9].forEach((ratio) => {
+        const sy = cy - shelfH + shelfH * ratio;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(cx - shelfW / 2 + 4 * scale, sy, shelfW - 8 * scale, 6 * scale);
 
-      // Shampoos / Bottles on shelf
-      [-24, -8, 8, 24].forEach((ox, i) => {
-        ctx.fillStyle = i % 2 === 0 ? '#f72585' : '#38bdf8';
-        ctx.fillRect(cx + ox * scale - 4 * scale, sy - 14 * scale, 8 * scale, 14 * scale);
+        [-24, -8, 8, 24].forEach((ox, i) => {
+          ctx.fillStyle = i % 2 === 0 ? '#f72585' : '#38bdf8';
+          ctx.fillRect(cx + ox * scale - 4 * scale, sy - 14 * scale, 8 * scale, 14 * scale);
+        });
       });
-    });
+    }
 
     this.cache.set(key, canvas);
     return canvas;

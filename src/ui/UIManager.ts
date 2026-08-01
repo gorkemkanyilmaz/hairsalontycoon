@@ -1,6 +1,6 @@
 import { StateStore } from '../core/StateStore';
 import { EventBus } from '../core/EventBus';
-import { GameEventType, IUpgradeNode, IGoogleReview } from '../core/Types';
+import { GameEventType, IUpgradeNode, IGoogleReview, IEmployeeData } from '../core/Types';
 
 export class UIManager {
   private stateStore: StateStore;
@@ -10,6 +10,9 @@ export class UIManager {
   private modalTitle!: HTMLElement;
   private modalBody!: HTMLElement;
   private modalCloseBtn!: HTMLElement;
+
+  private employeesTimer?: any;
+  private franchiseTimer?: any;
 
   constructor() {
     this.stateStore = StateStore.getInstance();
@@ -122,6 +125,54 @@ export class UIManager {
         this.stateStore.switchActiveBranch(bIdx);
       });
     });
+
+    // Dynamic Top HUD Speedup Bar for branch under construction
+    const activeBranch = this.stateStore.getActiveBranch();
+    let speedupBar = document.getElementById('branch-construction-hud-bar');
+    if (activeBranch && activeBranch.constructionEndsTimestamp && Date.now() < activeBranch.constructionEndsTimestamp) {
+      if (!speedupBar) {
+        speedupBar = document.createElement('div');
+        speedupBar.id = 'branch-construction-hud-bar';
+        speedupBar.style.cssText = `
+          position: absolute;
+          top: 82px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: linear-gradient(135deg, rgba(24, 16, 40, 0.95), rgba(40, 15, 60, 0.95));
+          border: 2px solid #fbbf24;
+          border-radius: 99px;
+          padding: 6px 16px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          z-index: 100;
+          pointer-events: auto !important;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        `;
+        document.body.appendChild(speedupBar);
+      }
+
+      const remainingSec = Math.max(1, Math.ceil((activeBranch.constructionEndsTimestamp - Date.now()) / 1000));
+      const neededDiamonds = Math.max(1, Math.ceil((remainingSec / 3600) * 50));
+      const mins = Math.floor(remainingSec / 60);
+      const secs = remainingSec % 60;
+      const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+      speedupBar.innerHTML = `
+        <span style="color: #fbbf24; font-weight: 800; font-size: 12px;">🚧 İnşaat Süresi: ⏱️ ${timeStr}</span>
+        <button id="btn-hud-speedup-construction" style="background: linear-gradient(135deg, #a855f7, #6366f1); color: white; border: 1px solid #fef08a; border-radius: 99px; padding: 4px 12px; font-weight: 900; font-size: 12px; cursor: pointer;">
+          ⚡ 💎${neededDiamonds} İle Anında Aç!
+        </button>
+      `;
+
+      document.getElementById('btn-hud-speedup-construction')?.addEventListener('click', () => {
+        this.stateStore.speedUpBranchConstructionWithDiamonds();
+      });
+    } else {
+      if (speedupBar) {
+        speedupBar.remove();
+      }
+    }
   }
 
   public openModal(title: string, htmlContent: string): void {
@@ -209,31 +260,34 @@ export class UIManager {
 
   public openBuyFurnitureModal(kind: 'sofa' | 'station', slotIndex: number): void {
     const state = this.stateStore.getState();
-    const branch = this.stateStore.getActiveBranch();
     const isSofa = kind === 'sofa';
-    const cost = isSofa ? 800 : 2000;
-    const diamondCost = Math.max(1, Math.ceil(cost / 100));
-    const title = isSofa ? '🛋️ Bekleme Koltuğu Satın Al' : '✂️ 2. Kuaför İstasyonu Satın Al';
+    const stationNum = slotIndex + 1;
+    const cost = isSofa ? (slotIndex === 1 ? 800 : 2500) : (stationNum === 3 ? 8000 : 2000);
+    const diamondCost = isSofa ? (slotIndex === 1 ? 8 : 25) : (stationNum === 3 ? 50 : 20);
+    const title = isSofa ? `🛋️ ${slotIndex + 1}. Bekleme Koltuğu Satın Al` : `✂️ ${stationNum}. Kuaför İstasyonu Satın Al`;
     const desc = isSofa
       ? `Salona ${slotIndex + 1}. Bekleme Koltuğunu ekleyin! Daha fazla müşteri sırada bekleyebilir.`
-      : `Salona 2. Kuaför Aynasını ve Koltuğunu ekleyin! İkinci bir kuaför çalıştırmanıza olanak tanır.`;
+      : `Salona ${stationNum}. Kuaför Aynasını ve Koltuğunu ekleyin! Yeni bir kuaför çalıştırmanıza olanak tanır.`;
 
-    const canAffordCash = state.cash >= cost;
-    const canAffordDiamond = state.diamonds >= diamondCost;
+    const prereqKey = isSofa ? (slotIndex === 1 ? 'waiting_sofa_2' : 'waiting_sofa_3') : (stationNum === 2 ? 'barber_station_2' : 'barber_station_3');
+    const prereq = this.stateStore.checkPrerequisites(prereqKey);
+    const canAffordCash = state.cash >= cost && prereq.allowed;
+    const canAffordDiamond = state.diamonds >= diamondCost && prereq.allowed;
 
     this.openModal(title, `
       <div style="padding: 16px; color: white; display: flex; flex-direction: column; gap: 16px; text-align: center; font-family: 'Outfit', sans-serif;">
-        <div style="font-size: 54px;">${isSofa ? '🛋️' : '✂️'}</div>
+        <div style="font-size: 54px;">${isSofa ? '🛋️' : (stationNum === 3 ? '👰' : '✂️')}</div>
         <h3 style="margin: 0; color: #fbbf24;">${title}</h3>
         <p style="margin: 0; font-size: 13px; color: #cbd5e1;">${desc}</p>
+        ${!prereq.allowed ? `<div style="background: rgba(239, 71, 111, 0.2); border: 1px solid #ef476f; border-radius: 12px; padding: 10px; color: #ffd166; font-size: 13px; font-weight: 800;">${prereq.reason}</div>` : `<div style="background: rgba(6, 214, 160, 0.15); border: 1px solid #06d6a0; border-radius: 12px; padding: 10px; color: #06d6a0; font-size: 13px; font-weight: 800;">✅ Ön Koşul Karşılandı — Satın Almaya Hazır!</div>`}
         <div style="background: rgba(255,255,255,0.06); border: 1px solid #fbbf24; border-radius: 14px; padding: 12px; font-weight: 800; color: #06d6a0; display: flex; justify-content: space-around; align-items: center;">
-          <span>Fiyat: ₺${cost}</span>
+          <span>Fiyat: ₺${cost.toLocaleString()}</span>
           <span style="color: #cbd5e1; font-size: 12px;">VEYA</span>
           <span style="color: #38bdf8;">⚡ ${diamondCost} 💎 Elmas</span>
         </div>
         <div style="display: flex; gap: 10px;">
           <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" id="btn-confirm-buy-furniture-cash" style="flex: 1;">
-            ₺${cost} İLE AL
+            ₺${cost.toLocaleString()} İLE AL
           </button>
           <button class="btn-upgrade ${canAffordDiamond ? '' : 'disabled'}" id="btn-confirm-buy-furniture-diamond" style="flex: 1; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
             ⚡ ${diamondCost} 💎 İLE AL
@@ -485,8 +539,9 @@ export class UIManager {
     const baseCost = 10000;
     const nextCost = Math.floor(baseCost * Math.pow(2.2, nextBranchIdx - 1));
     const nextDiamondCost = Math.max(1, Math.ceil(nextCost / 100));
-    const canAffordFranchiseCash = state.cash >= nextCost;
-    const canAffordFranchiseDiamond = state.diamonds >= nextDiamondCost;
+    const prereqBranch = this.stateStore.checkPrerequisites('open_branch_' + nextBranchIdx);
+    const canAffordFranchiseCash = state.cash >= nextCost && prereqBranch.allowed;
+    const canAffordFranchiseDiamond = state.diamonds >= nextDiamondCost && prereqBranch.allowed;
 
     const activeAd = this.stateStore.activeSocialAdPackage;
     const isAdActive = activeAd && Date.now() < activeAd.endsTimestamp;
@@ -521,6 +576,7 @@ export class UIManager {
     });
 
     branchListHtml += `
+      ${!prereqBranch.allowed ? `<div style="color: #ef476f; font-size: 11px; font-weight: 800; margin-top: 4px;">${prereqBranch.reason}</div>` : ''}
       <div style="display: flex; gap: 8px; margin-top: 8px;">
         <button class="btn-upgrade ${canAffordFranchiseCash ? '' : 'disabled'}" id="btn-open-franchise" style="flex: 1; font-size: 11px;">
           🏰 ₺${nextCost.toLocaleString()} İLE AÇ
@@ -652,29 +708,54 @@ export class UIManager {
 
     let html = `<div class="upgrades-grid">`;
 
-    // 2nd Barber Station Upgrade Card
+    // Progressive Single Barber Station Upgrade Card (1/3 -> 2/3 -> 3/3)
     const stationsCount = activeBranch.barberStationsCount || 1;
-    const isStation2Unlocked = stationsCount >= 2;
-    const canAffordStation2Cash = state.cash >= 2000;
-    const canAffordStation2Diamond = state.diamonds >= 20;
+    const isMaxStations = stationsCount >= 3;
+
+    let stationTitle = '';
+    let stationDesc = '';
+    let cashCost = 0;
+    let diamondCost = 0;
+
+    if (stationsCount === 1) {
+      stationTitle = '✂️ Kuaför İstasyonu Kurulumu';
+      stationDesc = 'Salona 2. Kuaför Aynasını ve Koltuğunu ekler. İkinci bir kuaför çalıştırmanıza olanak tanır.';
+      cashCost = 2000;
+      diamondCost = 20;
+    } else if (stationsCount === 2) {
+      stationTitle = '👰 3. Kuaför İstasyonu & VIP Koltuk';
+      stationDesc = 'Salona 3. Gelin Saçı & VIP Kuaför Aynasını ekler. Usta Kuaförü çalıştırmanıza olanak tanır.';
+      cashCost = 8000;
+      diamondCost = 50;
+    } else {
+      stationTitle = '✂️ Kuaför İstasyonu Kurulumu';
+      stationDesc = 'Tüm Kuaför İstasyonları ve Aynaları Kuruldu ve Açıldı! (3/3)';
+    }
+
+    const targetPrereqKey = stationsCount === 1 ? 'barber_station_2' : 'barber_station_3';
+    const stationPrereq = this.stateStore.checkPrerequisites(targetPrereqKey);
+
+    const canAffordCash = state.cash >= cashCost && (isMaxStations || stationPrereq.allowed);
+    const canAffordDiamond = state.diamonds >= diamondCost && (isMaxStations || stationPrereq.allowed);
 
     html += `
-      <div class="upgrade-card ${isStation2Unlocked ? 'maxed' : ''}">
-        <div class="upgrade-icon">✂️</div>
+      <div class="upgrade-card ${isMaxStations ? 'maxed' : ''} ${!isMaxStations && !stationPrereq.allowed ? 'prereq-failed' : ''}">
+        <div class="upgrade-icon">${stationsCount === 2 ? '👰' : '✂️'}</div>
         <div class="upgrade-info">
-          <div class="upgrade-name">✂️ 2. Kuaför İstasyonu Kurulumu <span class="upgrade-level">${isStation2Unlocked ? 'AÇIK (2/2)' : 'KİLİTLİ (1/2)'}</span></div>
-          <div class="upgrade-desc">Salona 2. Kuaför Aynasını ve Koltuğunu ekler. Selin K.'yı işe almanıza olanak tanır.</div>
+          <div class="upgrade-name">${stationTitle} <span class="upgrade-level">${isMaxStations ? '3/3 (MAX)' : `${stationsCount}/3`}</span></div>
+          <div class="upgrade-desc">${stationDesc}</div>
+          ${!isMaxStations && !stationPrereq.allowed ? `<div style="color: #ef476f; font-size: 11px; font-weight: 800; margin-top: 4px;">${stationPrereq.reason}</div>` : ''}
         </div>
         <div class="upgrade-action">
           ${
-            isStation2Unlocked
-              ? `<button class="btn-upgrade max" disabled>AÇIK</button>`
+            isMaxStations
+              ? `<button class="btn-upgrade max" disabled>AÇIK (MAX)</button>`
               : `<div style="display: flex; flex-direction: column; gap: 4px;">
-                  <button class="btn-upgrade ${canAffordStation2Cash ? '' : 'disabled'}" id="btn-buy-station-2-upgrade" style="font-size: 11px; padding: 6px 10px;">
-                    ₺2,000 Al
+                  <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" id="btn-buy-station-progressive" style="font-size: 11px; padding: 6px 10px;">
+                    ₺${cashCost.toLocaleString()} Al
                   </button>
-                  <button class="btn-upgrade ${canAffordStation2Diamond ? '' : 'disabled'}" id="btn-buy-station-2-upgrade-diamond" style="font-size: 11px; padding: 6px 10px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
-                    ⚡ 20 💎 Al
+                  <button class="btn-upgrade ${canAffordDiamond ? '' : 'disabled'}" id="btn-buy-station-progressive-diamond" style="font-size: 11px; padding: 6px 10px; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white;">
+                    ⚡ ${diamondCost} 💎 Al
                   </button>
                  </div>`
           }
@@ -683,18 +764,31 @@ export class UIManager {
     `;
 
     upgrades.forEach((u: IUpgradeNode) => {
+      if (
+        u.id === 'salon_expansion' ||
+        u.id === 'second_barber_station' ||
+        u.id === 'barber_station_2' ||
+        u.name.toLowerCase().includes('istasyon') ||
+        u.name.toLowerCase().includes('kuaför salonu') ||
+        u.description.toLowerCase().includes('saç kesim istasyonu') ||
+        u.description.toLowerCase().includes('kuaför aynasını ve koltuğunu')
+      ) {
+        return; // Exclude legacy or duplicate barber station nodes!
+      }
       const isMax = u.level >= u.maxLevel;
       const currentCost = Math.floor(u.baseCost * Math.pow(u.costMultiplier, u.level));
       const diamondCost = Math.max(1, Math.ceil(currentCost / 100));
 
       // Prerequisite check
-      let prereqFailed = false;
-      if (u.prerequisiteUpgradeId) {
+      const prereqCheck = this.stateStore.checkPrerequisites('upgrade_' + u.id);
+      let prereqFailed = !prereqCheck.allowed;
+      if (!prereqFailed && u.prerequisiteUpgradeId) {
         const prereq = activeBranch.upgrades[u.prerequisiteUpgradeId];
         if (!prereq || prereq.level < 1) {
           prereqFailed = true;
         }
       }
+      const prereqReason = prereqCheck.reason || u.prerequisiteDescription || 'Öncül şartı karşılanmalıdır!';
 
       const canAffordCash = state.cash >= currentCost && !prereqFailed;
       const canAffordDiamond = state.diamonds >= diamondCost && !prereqFailed;
@@ -705,7 +799,7 @@ export class UIManager {
           <div class="upgrade-info">
             <div class="upgrade-name">${u.name} <span class="upgrade-level">Seviye ${u.level}/${u.maxLevel}</span></div>
             <div class="upgrade-desc">${u.description}</div>
-            ${prereqFailed ? `<div style="color: #ef476f; font-size: 11px; font-weight: 800; margin-top: 4px;">⚠️ ${u.prerequisiteDescription}</div>` : ''}
+            ${prereqFailed ? `<div style="color: #ef476f; font-size: 11px; font-weight: 800; margin-top: 4px;">⚠️ ${prereqReason}</div>` : ''}
           </div>
           <div class="upgrade-action">
             ${
@@ -728,12 +822,12 @@ export class UIManager {
     html += `</div>`;
     this.modalBody.innerHTML = html;
 
-    document.getElementById('btn-buy-station-2-upgrade')?.addEventListener('click', () => {
+    document.getElementById('btn-buy-station-progressive')?.addEventListener('click', () => {
       if (this.stateStore.buyBarberStation()) {
         this.renderUpgradesList();
       }
     });
-    document.getElementById('btn-buy-station-2-upgrade-diamond')?.addEventListener('click', () => {
+    document.getElementById('btn-buy-station-progressive-diamond')?.addEventListener('click', () => {
       if (this.stateStore.buyBarberStationWithDiamonds()) {
         this.renderUpgradesList();
       }
@@ -855,6 +949,7 @@ export class UIManager {
           <div>
             <h4 style="margin: 0 0 4px 0; color: #06d6a0; font-size: 15px; font-weight: 800;">👩‍🎨 Cansu A. (1. Kuaför — Koltuk #1)</h4>
             <p style="margin: 0; font-size: 12px; color: #cbd5e1; line-height: 1.4;">1. kuaför koltuğundaki (7, 4) müşterilerin saçını otomatik yapar.</p>
+            <div style="color: #06d6a0; font-size: 11px; font-weight: 800; margin-top: 4px;">✅ Ön Koşul Yok (İlk Kuaförün — Hemen İşe Alabilirsin)</div>
           </div>
           <div style="display: flex; gap: 8px; width: 100%; margin-top: 4px;">
             <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" id="btn-hire-stylist-1" style="flex: 1; font-size: 12px; padding: 8px; white-space: nowrap;">
@@ -870,13 +965,15 @@ export class UIManager {
 
     // 2) Pelin K. - Receptionist (auto cashier) — ₺2,500 (25 💎)
     if (!hasReceptionist) {
-      const canAffordCash = state.cash >= 2500;
-      const canAffordDiamond = state.diamonds >= 25;
+      const prereqPelin = this.stateStore.checkPrerequisites('hire_Pelin K.');
+      const canAffordCash = state.cash >= 2500 && prereqPelin.allowed;
+      const canAffordDiamond = state.diamonds >= 25 && prereqPelin.allowed;
       html += `
-        <div style="background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(247, 37, 133, 0.15)); border: 2px solid #38bdf8; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; font-family: 'Outfit', sans-serif;">
+        <div style="background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(247, 37, 133, 0.15)); border: 2px solid ${prereqPelin.allowed ? '#38bdf8' : '#ef476f'}; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; font-family: 'Outfit', sans-serif;">
           <div>
             <h4 style="margin: 0 0 4px 0; color: #38bdf8; font-size: 15px; font-weight: 800;">👩‍💼 Pelin K. (Otomatik Kasiyer)</h4>
             <p style="margin: 0; font-size: 12px; color: #cbd5e1; line-height: 1.4;">Kasada bekleyen müşterilerin ödemesini otomatik tahsil eder. Sabır krizlerini önler!</p>
+            ${prereqPelin.allowed ? '<div style="color: #06d6a0; font-size: 11px; font-weight: 800; margin-top: 4px;">✅ Ön Koşul Karşılandı (2. İstasyon Faal)</div>' : `<div style="color: #ef476f; font-size: 11px; font-weight: 800; margin-top: 4px;">${prereqPelin.reason}</div>`}
           </div>
           <div style="display: flex; gap: 8px; width: 100%; margin-top: 4px;">
             <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" id="btn-hire-receptionist" style="flex: 1; font-size: 12px; padding: 8px; white-space: nowrap;">
@@ -890,20 +987,19 @@ export class UIManager {
       `;
     }
 
-    // 3) Selin K. - 2nd Stylist for Chair #2 — ₺4,500 (45 💎), prerequisite: 2. Kuaför İstasyonu (₺3,500)
+    // 3) Selin K. - 2nd Stylist for Chair #2 — ₺4,500 (45 💎), prerequisite: 2. Kuaför İstasyonu (₺2,000)
     if (!hasStylist2) {
-      const stationOk = stationsCount >= 2;
-      const canAffordCash = state.cash >= 4500 && stationOk;
-      const canAffordDiamond = state.diamonds >= 45 && stationOk;
-      const prereqNote = !stationOk ? '⚠️ Ön Koşul: Önce 2. Kuaför İstasyonu haritadan satın alınmalıdır!' : '';
+      const prereqSelin = this.stateStore.checkPrerequisites('hire_Selin K.');
+      const canAffordCash = state.cash >= 4500 && prereqSelin.allowed;
+      const canAffordDiamond = state.diamonds >= 45 && prereqSelin.allowed;
 
       html += `
-        <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(247, 37, 133, 0.15)); border: 2px solid ${stationOk ? '#fbbf24' : '#ef476f'}; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; font-family: 'Outfit', sans-serif;">
+        <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(247, 37, 133, 0.15)); border: 2px solid ${prereqSelin.allowed ? '#fbbf24' : '#ef476f'}; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; font-family: 'Outfit', sans-serif;">
           <div>
             <h4 style="margin: 0 0 4px 0; color: #fbbf24; font-size: 15px; font-weight: 800;">👩‍🎨 Selin K. (2. Kuaför — Koltuk #2)</h4>
             <p style="margin: 0; font-size: 12px; color: #cbd5e1; line-height: 1.4;">2. kuaför koltuğundaki (12, 4) müşterilerin saçını otomatik yapar.</p>
+            ${prereqSelin.allowed ? '<div style="color: #06d6a0; font-size: 11px; font-weight: 800; margin-top: 4px;">✅ Ön Koşul Karşılandı (2. İstasyon Faal)</div>' : `<div style="color: #ef476f; font-size: 11px; font-weight: 800; margin-top: 4px;">${prereqSelin.reason}</div>`}
           </div>
-          ${prereqNote ? `<div style="color: #ef476f; font-size: 11px; font-weight: 800;">${prereqNote}</div>` : ''}
           <div style="display: flex; gap: 8px; width: 100%; margin-top: 4px;">
             <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" id="btn-hire-stylist-2" style="flex: 1; font-size: 12px; padding: 8px; white-space: nowrap;">
               ₺4,500 İşe Al
@@ -916,20 +1012,19 @@ export class UIManager {
       `;
     }
 
-    // 4) Seda T. - 3rd Stylist for Chair #3 — ₺7,500 (75 💎), prerequisite: Salon Alanı Büyütme (3. İstasyon)
+    // 4) Seda T. - 3rd Stylist for Chair #3 — ₺7,500 (75 💎), prerequisite: 3. İstasyon
     if (!hasStylist3) {
-      const station3Ok = stationsCount >= 3;
-      const canAffordCash = state.cash >= 7500 && station3Ok;
-      const canAffordDiamond = state.diamonds >= 75 && station3Ok;
-      const prereqNote = !station3Ok ? '⚠️ Ön Koşul: Önce Salon Alanı Büyütme (3. Stand) yükseltmesi alınmalıdır!' : '';
+      const prereqSeda = this.stateStore.checkPrerequisites('hire_Usta Kuaför');
+      const canAffordCash = state.cash >= 7500 && prereqSeda.allowed;
+      const canAffordDiamond = state.diamonds >= 75 && prereqSeda.allowed;
 
       html += `
-        <div style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(247, 37, 133, 0.15)); border: 2px solid ${station3Ok ? '#c084fc' : '#ef476f'}; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; font-family: 'Outfit', sans-serif;">
+        <div style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(247, 37, 133, 0.15)); border: 2px solid ${prereqSeda.allowed ? '#c084fc' : '#ef476f'}; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; font-family: 'Outfit', sans-serif;">
           <div>
             <h4 style="margin: 0 0 4px 0; color: #c084fc; font-size: 15px; font-weight: 800;">👩‍🎨 Seda T. (3. Kuaför — Koltuk #3)</h4>
             <p style="margin: 0; font-size: 12px; color: #cbd5e1; line-height: 1.4;">3. kuaför koltuğundaki (17, 4) VIP ve Gelin Saçı müşterilerini otomatik yapar.</p>
+            ${prereqSeda.allowed ? '<div style="color: #06d6a0; font-size: 11px; font-weight: 800; margin-top: 4px;">✅ Ön Koşul Karşılandı (3. VIP İstasyonu Faal)</div>' : `<div style="color: #ef476f; font-size: 11px; font-weight: 800; margin-top: 4px;">${prereqSeda.reason}</div>`}
           </div>
-          ${prereqNote ? `<div style="color: #ef476f; font-size: 11px; font-weight: 800;">${prereqNote}</div>` : ''}
           <div style="display: flex; gap: 8px; width: 100%; margin-top: 4px;">
             <button class="btn-upgrade ${canAffordCash ? '' : 'disabled'}" id="btn-hire-stylist-3" style="flex: 1; font-size: 12px; padding: 8px; white-space: nowrap;">
               ₺7,500 İşe Al
