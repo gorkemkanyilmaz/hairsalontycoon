@@ -3,6 +3,7 @@ import { EventBus } from '../core/EventBus';
 import { CustomerManager, ICustomerNPC } from '../ai/CustomerAI';
 import { CustomerState, CustomerClass, GameEventType } from '../core/Types';
 import { SpriteManager } from './SpriteManager';
+import { Character3DRenderer, CharacterState } from './Character3DRenderer';
 import { TutorialManager } from '../ui/TutorialManager';
 
 export interface IIsoPoint {
@@ -1030,7 +1031,7 @@ export class IsometricRenderer {
               ctx.drawImage(sofaSprite, p.x - sofaSprite.width / 2, drawY);
             } else {
               ctx.save();
-              ctx.globalAlpha = 0.35;
+              ctx.globalAlpha = 0.72;
               ctx.drawImage(sofaSprite, p.x - sofaSprite.width / 2, drawY);
               ctx.restore();
               this.drawLockedBadge(p.x, drawY + 6 * this.zoom, '🛋️ +₺800');
@@ -1086,7 +1087,7 @@ export class IsometricRenderer {
             ctx.drawImage(stationSprite, p.x - stationSprite.width / 2, p.y - stationSprite.height + 10 * this.zoom);
           } else {
             ctx.save();
-            ctx.globalAlpha = 0.3;
+            ctx.globalAlpha = 0.70;
             const stationSprite = spriteMgr.getBarberStationSprite(this.zoom);
             ctx.drawImage(stationSprite, p.x - stationSprite.width / 2, p.y - stationSprite.height + 10 * this.zoom);
             ctx.restore();
@@ -1125,7 +1126,7 @@ export class IsometricRenderer {
             ctx.drawImage(stationSprite, p.x - stationSprite.width / 2, p.y - stationSprite.height + 10 * this.zoom);
           } else {
             ctx.save();
-            ctx.globalAlpha = 0.25;
+            ctx.globalAlpha = 0.70;
             const stationSprite = spriteMgr.getBarberStationSprite(this.zoom);
             ctx.drawImage(stationSprite, p.x - stationSprite.width / 2, p.y - stationSprite.height + 10 * this.zoom);
             ctx.restore();
@@ -1164,9 +1165,7 @@ export class IsometricRenderer {
         draw: (ctx) => {
           const p = this.gridToScreen(18 + offsetX, 9 + offsetY);
           const deskSprite = spriteMgr.getReceptionDeskSprite(this.zoom);
-          const dw = deskSprite.width / 2;
-          const dh = deskSprite.height / 2;
-          ctx.drawImage(deskSprite, p.x - dw / 2, p.y - dh + 15 * this.zoom, dw, dh);
+          ctx.drawImage(deskSprite, p.x - deskSprite.width / 2, p.y - deskSprite.height + 25 * this.zoom);
         }
       });
 
@@ -1183,14 +1182,31 @@ export class IsometricRenderer {
 
     // 4. Hired Employee NPCs (Stylists & Receptionist)
     const employees = this.stateStore.getState().employees;
+    const char3D = Character3DRenderer.getInstance();
+
     employees.forEach((emp) => {
       const renderX = emp.posX;
       entities.push({
         gridX: renderX, gridY: emp.posY, sortKey: renderX + emp.posY + 0.04,
         draw: (ctx) => {
           const p = this.gridToScreen(renderX, emp.posY);
-          const empSprite = spriteMgr.getStylistEmployeeSprite(emp.avatarColor, emp.isWalking, emp.walkAnimPhase, this.zoom);
-          ctx.drawImage(empSprite, p.x - empSprite.width / 2, p.y - empSprite.height + 12 * this.zoom);
+          const isWorking = (emp.role === 'STYLIST' && !emp.isWalking);
+          const walkAngle = emp.isWalking ? Math.atan2(emp.targetY - emp.posY, emp.targetX - emp.posX) : 0;
+          const state: CharacterState = emp.isWalking ? 'walk' : isWorking ? 'service' : 'idle';
+
+          const canvas3D = char3D.renderCharacter(
+            state,
+            emp.walkAnimPhase,
+            walkAngle,
+            true, // isStylist = true
+            '#1e1b4b',
+            emp.avatarColor
+          );
+
+          const drawW = Math.round(140 * this.zoom);
+          const drawH = Math.round(178 * this.zoom);
+          const footOffsetY = Math.round(148 * this.zoom);
+          ctx.drawImage(canvas3D, p.x - drawW / 2, p.y - footOffsetY + 12 * this.zoom, drawW, drawH);
 
           // Employee Badge Pill with role icon
           const roleIcon = emp.role === 'RECEPTIONIST' ? '👩‍💼' : '👩‍🎨';
@@ -1207,28 +1223,63 @@ export class IsometricRenderer {
 
     // Customers
     customerMgr.getCustomers().forEach((cust: ICustomerNPC) => {
+      const isSeatedAtChair = (cust.state === CustomerState.SEATED || cust.state === CustomerState.RECEIVING_SERVICE);
+      const isSeatedAtWaiting = (cust.state === CustomerState.WAITING_IN_QUEUE && !cust.isWalking);
+      const isSeated = isSeatedAtChair || isSeatedAtWaiting;
+      const sortShift = isSeatedAtWaiting ? 0.02 : 0.05;
+
       entities.push({
-        gridX: cust.posX, gridY: cust.posY, sortKey: cust.posX + cust.posY + 0.05,
+        gridX: cust.posX, gridY: cust.posY, sortKey: cust.posX + cust.posY + sortShift,
         draw: (ctx) => {
           const p = this.gridToScreen(cust.posX, cust.posY);
+          const walkAngle = cust.isWalking ? Math.atan2(cust.targetY - cust.posY, cust.targetX - cust.posX) : 0;
 
-          const custSprite = spriteMgr.getCustomerAnimFrame(
-            cust.avatarColor,
-            cust.isWalking,
-            cust.walkAnimPhase,
-            this.zoom,
-            cust.appliedHairColor
-          );
-          ctx.drawImage(custSprite, p.x - custSprite.width / 2, p.y - custSprite.height + 12 * this.zoom);
-
-          // Name Badge Pill (Golden Pill for VIPs)
-          if (cust.customerClass === CustomerClass.VIP) {
-            this.drawNameBadgePill(`👑 ${cust.name}`, p.x, p.y + 22 * this.zoom, '#fbbf24');
-          } else {
-            this.drawNameBadgePill(cust.name, p.x, p.y + 22 * this.zoom);
+          let state: CharacterState = 'idle';
+          if (isSeatedAtChair) {
+            state = 'sit_chair';
+          } else if (isSeatedAtWaiting) {
+            state = 'sit_sofa';
+          } else if (cust.isWalking) {
+            state = 'walk';
           }
 
-          const baseHeadY = p.y - 78 * this.zoom;
+          const canvas3D = char3D.renderCharacter(
+            state,
+            cust.walkAnimPhase,
+            walkAngle,
+            false, // Customer
+            cust.appliedHairColor,
+            cust.avatarColor
+          );
+
+          const drawW = Math.round(140 * this.zoom);
+          const drawH = Math.round(178 * this.zoom);
+          const footOffsetY = Math.round(148 * this.zoom);
+
+          let drawX = p.x - drawW / 2;
+          let drawY = p.y - footOffsetY + 12 * this.zoom;
+
+          if (isSeatedAtChair) {
+            // Full-body crossed-legs customer seated squarely on the styling chair cushion
+            drawX = p.x + 31 * this.zoom - drawW / 2;
+            drawY = p.y - 164 * this.zoom;
+          } else if (isSeatedAtWaiting) {
+            // Full-body crossed-legs customer seated squarely inside the waiting armchair cushion
+            drawX = p.x + 6 * this.zoom - drawW / 2;
+            drawY = p.y - 146 * this.zoom;
+          }
+
+          ctx.drawImage(canvas3D, drawX, drawY, drawW, drawH);
+
+          // Name Badge Pill (Golden Pill for VIPs)
+          const badgeY = isSeated ? p.y + 14 * this.zoom : p.y + 22 * this.zoom;
+          if (cust.customerClass === CustomerClass.VIP) {
+            this.drawNameBadgePill(`👑 ${cust.name}`, p.x, badgeY, '#fbbf24');
+          } else {
+            this.drawNameBadgePill(cust.name, p.x, badgeY);
+          }
+
+          const baseHeadY = isSeated ? drawY + 48 * this.zoom : p.y - 78 * this.zoom;
 
           // Draw Glowing VIP Crown Halo above VIP head
           if (cust.customerClass === CustomerClass.VIP) {

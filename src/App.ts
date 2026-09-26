@@ -11,6 +11,7 @@ import { HaircutMinigame } from './ui/HaircutMinigame';
 import { SoundEngine } from './audio/SoundEngine';
 import { OfflineEarningsManager } from './core/OfflineEarnings';
 import { TutorialManager, TutorialStep } from './ui/TutorialManager';
+import { CharacterPreviewScene } from './character/CharacterPreviewScene';
 
 export class App {
   private stateStore: StateStore;

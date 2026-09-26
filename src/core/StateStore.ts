@@ -942,8 +942,8 @@ export class StateStore {
     const offsetX = col * 30;
     const offsetY = row * 28;
 
-    const startX = (role === 'RECEPTIONIST' ? 18 : (assignedChairIndex === 1 ? 13 : (assignedChairIndex === 2 ? 18 : 8))) + offsetX;
-    const startY = (role === 'RECEPTIONIST' ? 8 : 3) + offsetY;
+    const startX = (role === 'RECEPTIONIST' ? 18 : (assignedChairIndex === 1 ? 13.6 : (assignedChairIndex === 2 ? 18.6 : 8.6))) + offsetX;
+    const startY = (role === 'RECEPTIONIST' ? 8 : 2.8) + offsetY;
 
     const newEmp: IEmployeeData = {
       id: 'emp_' + Date.now(),

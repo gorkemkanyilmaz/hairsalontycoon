@@ -62,9 +62,9 @@ export class EmployeeManager {
     }
 
     if (emp.role === 'JUNIOR_STYLIST' || emp.role === 'SENIOR_STYLIST') {
-      // Automatic Hair Stylist AI Logic (Positioned to the RIGHT of station)
-      const homeX = (emp.assignedChairIndex === 1 ? 13 : (emp.assignedChairIndex === 2 ? 18 : 8)) + offsetX;
-      const homeY = 3 + offsetY;
+      // Automatic Hair Stylist AI Logic (Positioned beside station so seated customer is completely visible)
+      const homeX = (emp.assignedChairIndex === 1 ? 13.6 : (emp.assignedChairIndex === 2 ? 18.6 : 8.6)) + offsetX;
+      const homeY = 2.8 + offsetY;
       emp.targetX = homeX;
       emp.targetY = homeY;
 

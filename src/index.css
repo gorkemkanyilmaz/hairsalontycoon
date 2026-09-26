@@ -941,3 +941,334 @@ html, body {
   }
 }
 
+/* ─────────────────────────────────────────────────────────────
+   3D CHARACTER PREVIEW STUDIO OVERLAY
+   ───────────────────────────────────────────────────────────── */
+.character-preview-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2000;
+  display: flex;
+  background: #130e24;
+  overflow: hidden;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  pointer-events: auto;
+}
+
+.character-preview-overlay.hidden {
+  display: none !important;
+}
+
+.preview-canvas-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.preview-canvas-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* Floating Control Card (Right Side / Bottom on Mobile) */
+.preview-ui-panel {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 360px;
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 40px);
+  z-index: 10;
+  overflow-y: auto;
+  pointer-events: auto;
+}
+
+.preview-card {
+  background: rgba(22, 14, 38, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1.5px solid rgba(244, 114, 182, 0.45);
+  border-radius: 20px;
+  padding: 18px;
+  color: #ffffff;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 25px rgba(244, 114, 182, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.preview-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding-bottom: 12px;
+}
+
+.badge-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid #fbbf24;
+  padding: 2px 8px;
+  border-radius: 99px;
+  margin-bottom: 4px;
+}
+
+.preview-header h2 {
+  font-size: 16px;
+  font-weight: 800;
+  margin: 0;
+  background: linear-gradient(135deg, #ffffff, #fce7f3);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.btn-close {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.btn-close:hover {
+  background: #ef476f;
+  border-color: #ef476f;
+  transform: rotate(90deg);
+}
+
+.preview-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.section-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.group-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #f472b6;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Character Selector Chips */
+.selector-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #e2e8f0;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chip-btn:hover {
+  background: rgba(244, 114, 182, 0.25);
+  border-color: #f472b6;
+}
+
+.chip-btn.active {
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+  border-color: #ffffff;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(236, 72, 153, 0.5);
+}
+
+/* Animation Action Buttons Grid */
+.anim-btn-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.action-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.action-btn:hover {
+  background: rgba(251, 191, 36, 0.2);
+  border-color: #fbbf24;
+  transform: translateY(-2px);
+}
+
+.action-btn.active {
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  border-color: #ffffff;
+  box-shadow: 0 4px 14px rgba(6, 182, 212, 0.45);
+}
+
+/* Compass 8-Direction Grid */
+.compass-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.compass-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 8px 4px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.compass-btn:hover {
+  background: rgba(168, 85, 247, 0.3);
+  border-color: #a855f7;
+}
+
+.compass-btn.active {
+  background: linear-gradient(135deg, #a855f7, #6366f1);
+  border-color: #fbbf24;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+}
+
+/* 8-Direction Walk Compass Test Button */
+.special-test-btn {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  border: 1.5px solid #fbbf24;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(217, 119, 6, 0.4);
+  transition: all 0.2s ease;
+}
+
+.special-test-btn:hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 20px rgba(251, 191, 36, 0.6);
+}
+
+.special-test-btn.active {
+  background: linear-gradient(135deg, #059669, #10b981);
+  border-color: #34d399;
+}
+
+/* Hair Customizer Row */
+.style-btn-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.sub-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sub-btn:hover {
+  background: rgba(244, 114, 182, 0.2);
+  border-color: #f472b6;
+}
+
+.color-swatches-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.swatch-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.color-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease;
+}
+
+.color-swatch:hover {
+  transform: scale(1.2);
+}
+
+/* Top Nav HUD Launch Button */
+.btn-preview-launch {
+  background: linear-gradient(135deg, #ec4899, #8b5cf6) !important;
+  border: 1.5px solid #fbbf24 !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  animation: previewPulse 2s infinite ease-in-out;
+}
+
+@keyframes previewPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(236, 72, 153, 0.6); }
+  50% { box-shadow: 0 0 18px rgba(251, 191, 36, 0.8); }
+}
+
+@media (max-width: 600px) {
+  .preview-ui-panel {
+    top: auto;
+    bottom: 12px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+    max-width: none;
+    max-height: 48vh;
+  }
+}
+
+
